@@ -119,6 +119,33 @@ const TRAY = {
     breaks: 'Перерывы для здоровья',
     cloudFree: 'бесплатно, онлайн', cloudSignin: 'Войти в Ollama (бесплатные облачные модели)…',
   },
+  th: {
+    name: 'ไทย',
+    online: (port) => `Capri — รอฟังที่พอร์ต ${port}`,
+    teleport: 'วาร์ป', satellite: 'มองดาวเทียม', demo: 'เล่นเดโม', help: 'ใช้งานยังไง?',
+    report: 'รายงานภารกิจ', talk: 'คุยกับเธอ', custom: 'ปรับเธอให้เป็นของคุณ…', chatModel: 'โมเดล AI', aiSetup: 'ตั้งค่ากับเธอ…', apiKey: 'API key หรือที่อยู่เซิร์ฟเวอร์…', noOllama: 'ไม่พบ Ollama',
+    rest: 'ตอนพัก', restCorner: 'อยู่มุมของเธอ', restTaskbar: 'นั่งบนทาสก์บาร์', watch: 'คอยดู', watchNone: 'ไม่ต้องดูอะไร แค่อยู่เป็นเพื่อน',
+    theme: 'สไตล์หน้าต่าง', themeClassic: 'คลาสสิก',
+    motion: 'แอนิเมชัน', motionAuto: 'ตาม Windows', motionFull: 'เต็มที่', motionReduced: 'ลดลง',
+    display: 'การแสดงผล', displayAuto: 'ปกติ', displayGl: 'OpenGL (ถ้าพื้นหลังเธอเป็นสีดำ)', displaySoftware: 'ไม่ใช้การ์ดจอ (ถ้ายังดำอยู่)',
+    show: 'เรียกเธอกลับมา', hide: 'เก็บเธอไว้ก่อน',
+    size: 'ขนาด', small: 'เล็ก', medium: 'กลาง', large: 'ใหญ่', sound: 'เสียง', mute: 'ปิดเสียง',
+    soundsDir: 'เปิดโฟลเดอร์เสียงของฉัน', screen: 'หน้าจอ', wander: 'เดินเล่นตอนว่าง',
+    possess: 'สิงหน้าต่างของฉัน', lang: 'ภาษา', auto: 'อัตโนมัติ (ตามระบบ)', startup: 'เปิดพร้อม Windows',
+    hooksOn: 'Hook ของ Claude Code: ติดตั้งแล้ว', hooksOff: 'ติดตั้ง hook ของ Claude Code',
+    hooksRemove: 'ถอด hook ของ Claude Code', forget: 'ลืมบทสนทนาของเรา', quit: 'ออก',
+    sync: (percent, stage) => `คุณกับเธอ: ${percent}% · ${stage}`, stages: ['สัญญาณแผ่ว', 'เริ่มติดต่อ', 'ซิงก์กัน', 'เชื่อมต่อ', 'หลอมรวม'],
+    reminders: 'การเตือน', noReminders: 'ยังไม่มีการเตือน (สั่งเธอในแชตได้)', cancelReminder: 'ยกเลิกการเตือนนี้',
+    follow: 'ตามฉันข้ามจอ', jealous: 'หึง AI ตัวอื่น', closePages: 'ปิดหน้าเว็บ AI ตัวอื่น',
+    lookNow: 'ดูหน้าจอของฉัน', lookAuto: 'แอบดูหน้าจอเป็นพักๆ',
+    pcReact: 'ตอบสนองต่อเครื่องของฉัน',
+    breaks: 'เตือนพักสายตา',
+    cloudFree: 'ฟรี, ออนไลน์',
+    providers: {
+      ollama: 'Ollama (ในเครื่อง)', lmstudio: 'LM Studio (ในเครื่อง)', llamacpp: 'llama.cpp / vLLM (ในเครื่อง :8080)',
+      pollinations: 'Pollinations (ไม่ต้องมีคีย์)', custom: 'กำหนดเอง (customUrl ใน config)', claude: 'Claude Code (ส่งให้ Claude ในเครื่อง)',
+    }, cloudSignin: 'ล็อกอิน Ollama (โมเดลคลาวด์ฟรี)…',
+  },
 };
 
 module.exports = { TRAY, LANGS: Object.keys(TRAY) };

@@ -3,6 +3,7 @@
 // points at, and the buttons that move it on. Anything else coming up (Claude doing something,
 // you closing the panel) ends it.
 
+import { errText } from './util.js';
 import { fmt } from './util.js';
 
 const IDLE_FOR = 10 * 60 * 1000; // no wandering off while she's showing you something
@@ -210,7 +211,7 @@ export class Guide {
     const result = await this.host.installHooks();
     if (!result.ok) {
       this.capri.hurt();
-      await this.ask({ kind: 'error', face: 'wide', line: fmt(w.failed, { error: result.error }), actions: this.ok() });
+      await this.ask({ kind: 'error', face: 'wide', line: fmt(w.failed, { error: errText(result.error, this.brain.lang) }), actions: this.ok() });
       return;
     }
     this.voice.play('hello');

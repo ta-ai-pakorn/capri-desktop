@@ -1,3 +1,4 @@
+import { errText } from './util.js';
 import { Capri } from './capri.js';
 import { FxLayer, GRAB_FRAMES } from './fx.js';
 import { Chip, Mask } from './chip.js';
@@ -776,7 +777,7 @@ async function boot() {
         break;
       case 'hooks':
         if (cmd.ok) panel.say({ kind: 'info', line: cmd.action === 'install' ? t.hooksOk : t.hooksRemoved, hold: 6000 });
-        else panel.say({ kind: 'error', line: fmt(t.hooksFail, { error: cmd.error }), hold: 9000 });
+        else panel.say({ kind: 'error', line: fmt(t.hooksFail, { error: errText(cmd.error, brain.lang) }), hold: 9000 });
         break;
       // --dev helpers
       case 'intro': // her intro again, as when she starts (still: as with Windows' animations off)

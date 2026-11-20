@@ -382,7 +382,7 @@ function rebuildTray() {
         { label: t.aiSetup, click: () => sendCommand('setupChat') },
         { type: 'separator' },
         ...Object.entries(llm.PROVIDERS).map(([provider, p]) => ({
-          label: p.label, type: 'radio', checked: cfg.provider === provider, click: () => pickProvider(provider),
+          label: t.providers?.[provider] || p.label, type: 'radio', checked: cfg.provider === provider, click: () => pickProvider(provider),
         })),
         { type: 'separator' },
         ...(chatModels?.length

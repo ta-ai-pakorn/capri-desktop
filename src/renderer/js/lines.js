@@ -1,6 +1,8 @@
 // What Capri says. She's a personality construct — dozens of minds in one — so she
 // sometimes talks as "we". Slang is Night City's: choom, preem, nova, flatline.
 
+import { TH } from './lines-th.js';
+
 export const LINES = {
   fr: {
     state: { work: 'EN COURS', done: 'TERMINÉ', alert: 'ATTENTE', error: 'ERREUR', info: 'SYNC', idle: 'VEILLE', remind: 'RAPPEL' },
@@ -2277,6 +2279,16 @@ export const LINES = {
   },
 };
 
+// Thai: laid over English, so a line not translated yet stays English
+function over(base, top) {
+  if (top === undefined) return base;
+  if (Array.isArray(base) || Array.isArray(top) || !base || !top || typeof base !== 'object' || typeof top !== 'object') return top;
+  const out = { ...base };
+  for (const [k, v] of Object.entries(top)) out[k] = over(base[k], v);
+  return out;
+}
+LINES.th = over(LINES.en, TH);
+
 // The coding assistants she can watch besides Claude Code: the same lines with their name, their
 // hooks file, and what to do once her hooks are in.
 export const ASSISTANT_NAMES = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' };
@@ -2289,6 +2301,7 @@ const OTHERS = {
       fr: 'Tu veux que je me branche sur Codex ? Un clic, puis relance Codex et autorise mes hooks quand il te le demande.',
       es: '¿Quieres que me conecte a Codex? Un clic, y luego reinicia Codex y autoriza mis hooks cuando te lo pida.',
       pt: 'Quer que eu me conecte ao Codex? Um clique, depois reinicie o Codex e autorize meus hooks quando ele pedir.',
+      th: 'ให้ฉันเชื่อมกับ Codex ไหม? คลิกเดียว แล้วเปิด Codex ใหม่ และกดอนุญาต hook ของฉันตอนมันถาม',
       ru: 'Подключиться к Codex? Один клик, потом перезапусти Codex и разреши мои хуки, когда он спросит.',
     },
     after: {
@@ -2296,6 +2309,7 @@ const OTHERS = {
       fr: 'Maintenant relance Codex et autorise mes hooks quand il te le demande. Dès qu’il fait quelque chose, je te le dis.',
       es: 'Ahora reinicia Codex y autoriza mis hooks cuando te lo pida. En cuanto haga algo, te aviso.',
       pt: 'Agora reinicie o Codex e autorize meus hooks quando ele pedir. Assim que ele fizer algo, eu te aviso.',
+      th: 'ทีนี้เปิด Codex ใหม่ แล้วกดอนุญาต hook ของฉันตอนมันถาม พอมันเริ่มทำอะไร ฉันจะบอกนายเอง',
       ru: 'Теперь перезапусти Codex и разреши мои хуки, когда он спросит. Как только он что-то сделает, я скажу.',
     },
   },
@@ -2306,6 +2320,7 @@ const OTHERS = {
       fr: 'Tu veux que je me branche sur Antigravity ? Un clic, puis lance une nouvelle conversation dedans.',
       es: '¿Quieres que me conecte a Antigravity? Un clic, y luego empieza una conversación nueva en él.',
       pt: 'Quer que eu me conecte ao Antigravity? Um clique, depois comece uma conversa nova nele.',
+      th: 'ให้ฉันเชื่อมกับ Antigravity ไหม? คลิกเดียว แล้วเริ่มบทสนทนาใหม่ในนั้น',
       ru: 'Подключиться к Antigravity? Один клик, потом начни в нём новый разговор.',
     },
     after: {
@@ -2313,6 +2328,7 @@ const OTHERS = {
       fr: 'Maintenant lance une nouvelle conversation dans Antigravity. Dès qu’il fait quelque chose, je te le dis.',
       es: 'Ahora empieza una conversación nueva en Antigravity. En cuanto haga algo, te aviso.',
       pt: 'Agora comece uma conversa nova no Antigravity. Assim que ele fizer algo, eu te aviso.',
+      th: 'ทีนี้เริ่มบทสนทนาใหม่ใน Antigravity พอมันเริ่มทำอะไร ฉันจะบอกนายเอง',
       ru: 'Теперь начни новый разговор в Antigravity. Как только он что-то сделает, я скажу.',
     },
   },

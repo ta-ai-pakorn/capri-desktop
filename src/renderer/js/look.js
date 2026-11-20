@@ -5,6 +5,7 @@
 // disk), her eyes on the window in front while a scanline sweeps it, and one or two sentences from
 // her AI, in character. Her chat remembers what she said, for a while.
 
+import { errText } from './util.js';
 import { fmt, rand } from './util.js';
 import { clean, mood } from './chat.js';
 
@@ -130,7 +131,7 @@ export class Look {
       }
       const snap = await this.host.lookSnap();
       if (!snap.ok) {
-        if (manual) this.panel.say({ kind: 'info', face: 'aside', line: fmt(t.failed, { error: snap.error }), hold: 6000 });
+        if (manual) this.panel.say({ kind: 'info', face: 'aside', line: fmt(t.failed, { error: errText(snap.error, this.brain.lang) }), hold: 6000 });
         return;
       }
       this.lastFg = this.capri.windows.fg;
@@ -143,7 +144,7 @@ export class Look {
           this.panel.say({ kind: 'info', face: 'aside', line: fmt(t.noVision, { model: String(res.model || '…').replace(/:latest$/, '') }), hold: 9000 });
           if (this.auto) this.host.setConfig({ watchScreen: false });
         } else if (manual) {
-          this.panel.say({ kind: 'info', face: 'aside', line: res.code === 'noai' ? t.noAI : fmt(t.failed, { error: res.error || '…' }), hold: 7000 });
+          this.panel.say({ kind: 'info', face: 'aside', line: res.code === 'noai' ? t.noAI : fmt(t.failed, { error: errText(res.error, this.brain.lang) || '…' }), hold: 7000 });
         }
         return;
       }

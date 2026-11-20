@@ -44,6 +44,32 @@ const POLITE = word("s['’]il te pla[iî]t|stp|svp|please|pls|plz|por favor|п�
 // what comes before what to remind you of, once the rest is gone
 const LEAD = new RegExp("^(?:[\\s,:;.!?-]|d['’]|qu['’]|(?:capri|de que|de|que|pour|à|to|that|about|of|for|para|pra|me|о|об|что|чтобы|мне)(?![\\p{L}]))+", 'iu');
 
+// Thai: no spaces between words, and the hour said its own way ("บ่าย 3", "6 โมงเย็น", "2 ทุ่ม",
+// "ตี 5"). The Thai time phrases become the English ones above, padded with spaces, before parsing.
+const THAI_HOUR = (h) => ` at ${h}h `;
+export function fromThai(text) {
+  if (!/[\u0E00-\u0E7F]/.test(text)) return text;
+  return text
+    .replace(/(?:ช่วย)?เตือน(?:ฉัน|ผม|หนู|เรา|ด้วย|หน่อย|นะ|ที)*/g, ' remind me ')
+    .replace(/(?:ใน)?อีก\s*ครึ่ง\s*(?:ชั่วโมง|ชม\.?)/g, ' in half an hour ')
+    .replace(/(?:ใน)?อีก\s*(\d+)\s*(?:ชั่วโมง|ชม\.?)\s*(?:(?:กับ|และ)?\s*(\d+)\s*นาที)?/g,
+      (_, h, m) => ` in ${h} hours${m ? ` and ${m} min` : ''} `)
+    .replace(/(?:ใน)?อีก\s*(\d+)\s*นาที/g, ' in $1 min ')
+    .replace(/(?:ใน)?อีก\s*(\d+)\s*วินาที/g, ' in $1 seconds ')
+    .replace(/(?:ตอน)?เที่ยงคืน/g, ' midnight ')
+    .replace(/(?:ตอน)?เที่ยง(?:วัน|ตรง)?/g, ' noon ')
+    .replace(/(?:ตอน)?บ่าย\s*โมง/g, THAI_HOUR(13))
+    .replace(/(?:ตอน)?บ่าย\s*(\d{1,2})(?:\s*โมง)?(?:\s*(?:ครึ่ง))?/g, (_, h, half) => THAI_HOUR(Number(h) < 12 ? Number(h) + 12 : h))
+    .replace(/(?:ตอน)?(\d{1,2})\s*ทุ่ม/g, (_, h) => THAI_HOUR(Number(h) + 18))
+    .replace(/(?:ตอน)?ตี\s*(\d{1,2})/g, (_, h) => THAI_HOUR(h) + 'in the morning ')
+    .replace(/(?:ตอน)?(\d{1,2})\s*โมง\s*เย็น/g, (_, h) => THAI_HOUR(Number(h) < 12 ? Number(h) + 12 : h))
+    .replace(/(?:ตอน)?(\d{1,2})\s*โมง(\s*เช้า)?/g, (_, h, morning) => THAI_HOUR(h) + (morning ? 'in the morning ' : ''))
+    .replace(/(?:ตอน|เวลา)\s*(\d{1,2}[:.]\d{2})(?:\s*น\.)?/g, ' at $1 ')
+    .replace(/(\d{1,2}[:.]\d{2})\s*น\./g, ' $1 ')
+    .replace(/(?:วัน)?พรุ่งนี้/g, ' tomorrow ')
+    .replace(/(?:ตอน)?คืนนี้|(?:ตอน)?เย็นนี้/g, ' tonight ');
+}
+
 const MAX_MS = 7 * 24 * 3600 * 1000;
 
 function number(word) {
@@ -61,6 +87,7 @@ function unitMs(unit) {
 
 // When, read off text: { at (ms), spans: the parts of the text that said it }, or null.
 export function parseWhen(text, now = Date.now()) {
+  text = fromThai(text);
   let m = IN_HM.exec(text);
   if (m) return { at: now + (Number(m[1]) * 60 + Number(m[2])) * 60000, spans: [m] };
   m = IN.exec(text);
@@ -121,13 +148,15 @@ export function parseWhen(text, now = Date.now()) {
 // A reminder asked for in text: { at (ms, or null if it doesn't say when), text: what to remind
 // you of ('' if nothing) }, or null if it isn't asking for one.
 export function parseReminder(text, now = Date.now()) {
+  text = fromThai(text);
   const trigger = TRIGGER.exec(text);
   if (!trigger) return null;
   const when = parseWhen(text, now);
   let what = text;
   for (const m of [trigger, ...(when?.spans || [])]) what = what.replace(m[0], ' ');
   what = what.replace(PM, ' ').replace(AM, ' ').replace(TOMORROW, ' ').replace(POLITE, ' ');
-  what = what.replace(/\s+/g, ' ').replace(LEAD, '').replace(/[\s,;:.!?]+$/, '').trim().slice(0, 140);
+  what = what.replace(/\s+/g, ' ').replace(LEAD, '').replace(/[\s,;:.!?]+$/, '').trim()
+    .replace(/^(?:ว่า\s*)?(?:ให้\s*)?/, '').replace(/\s*(?:ด้วย|หน่อย|นะ|น้า|จ้า|ครับ|ค่ะ|คะ)+$/, '').trim().slice(0, 140);
   const at = when && when.at - now >= 5000 && when.at - now <= MAX_MS ? when.at : null;
   return { at, text: what };
 }

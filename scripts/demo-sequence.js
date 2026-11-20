@@ -37,6 +37,13 @@ const TEXT = {
     push: 'Fazer push na main',
     reply: 'Adicionei **GET /gigs** com paginação por cursor, e 6 testes passam. O push foi feito.',
   },
+  th: {
+    prompt: 'เพิ่ม endpoint /gigs แบบแบ่งหน้า พร้อมเทสต์',
+    explore: 'เช็ก route ที่เหลือ',
+    test: 'รันเทสต์ gigs',
+    push: 'Push ขึ้น main',
+    reply: 'เสร็จแล้ว: **GET /gigs** แบ่งหน้าด้วย cursor เทสต์ผ่าน 6 ตัว push เรียบร้อย',
+  },
   ru: {
     prompt: 'Добавь эндпоинт /gigs с пагинацией и тестами',
     explore: 'Проверить остальные маршруты',

@@ -12,8 +12,8 @@ const PLUG_EVERY = 15 * 1000;
 const GAME_AFTER = 6000;  // a game in front this long: you're playing
 const GAME_OVER = 8000;   // and gone this long: you're done
 
-const PHONE = /phone|iphone|apple|galaxy|samsung|pixel|xiaomi|redmi|poco|oneplus|huawei|honor|motorola|oppo|vivo|realme|nokia|xperia|android|mobile|t[ée]l[ée]phone|celular|телефон/i;
-const PAD = /controller|gamepad|manette|mando|controle|xbox|dualsense|dualshock|joy-?con|геймпад/i;
+const PHONE = /phone|iphone|apple|galaxy|samsung|pixel|xiaomi|redmi|poco|oneplus|huawei|honor|motorola|oppo|vivo|realme|nokia|xperia|android|mobile|t[ée]l[ée]phone|celular|телефон|โทรศัพท์|มือถือ/i;
+const PAD = /controller|gamepad|manette|mando|controle|xbox|dualsense|dualshock|joy-?con|геймпад|จอย/i;
 
 // what was plugged in, from the name and the class Windows gives it
 function kindOf({ name = '', class: cls = '' }) {

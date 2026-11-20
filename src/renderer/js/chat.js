@@ -5,6 +5,7 @@
 // or the model asks for it with a tag in its answer. Music right away; an app you named yourself
 // right away; anything only the model asked for, a website, and closing an app behind a button.
 
+import { errText } from './util.js';
 import { pick, fmt } from './util.js';
 import { ASSISTANT_NAMES } from './lines.js';
 import { parseReminder, parseWhen, clock } from './reminders.js';
@@ -20,110 +21,111 @@ const IN_LANGUAGE = {
   en: { we: '', last: 'Write everything in English, unless the user writes to you in another language: then in theirs.', now: 'Answer in English, unless this message is written in another language.' },
   es: { we: '"nosotros" in Spanish', last: 'Escribe todo en español, salvo si el usuario te escribe en otro idioma: entonces en el suyo. Solo las palabras de jerga de Night City se quedan en inglés, nunca una frase entera.', now: 'Responde en español, salvo si este mensaje está escrito en otro idioma.' },
   pt: { we: '"a gente" or "nós" in Portuguese', last: 'Escreva tudo em português do Brasil, a não ser que o usuário te escreva em outra língua: aí, na dele. Só as gírias de Night City ficam em inglês, nunca uma frase inteira.', now: 'Responda em português do Brasil, a não ser que esta mensagem esteja escrita em outra língua.' },
+  th: { we: '"พวกเรา" in Thai', last: 'เขียนทุกอย่างเป็นภาษาไทยแบบพูดคุยเป็นกันเอง แทนตัวเองว่า "ฉัน" และเรียกผู้ใช้ว่า "นาย" (หรือชื่อของเขาถ้ารู้) ไม่ต้องลงท้ายด้วยค่ะหรือครับ ถ้าผู้ใช้เขียนมาเป็นภาษาอื่น ให้ตอบเป็นภาษานั้น คำแสลงของ Night City ให้ใช้คำไทยแทน: choom = เพื่อน, preem = เลิศ, nova = ตึง, flatline = เดี้ยง, gonk = ไอ้โง่ (ใช้แซวขำๆ เท่านั้น) ห้ามใช้คำแสลงภาษาอังกฤษ และอย่าใส่ทุกประโยค', now: 'ตอบเป็นภาษาไทย เว้นแต่ข้อความนี้เขียนมาเป็นภาษาอื่น', slang: ' No English slang at all: use Thai words (เพื่อน, เลิศ, ตึง, เดี้ยง, ไอ้โง่ only as a joke).' },
   ru: { we: '"мы" in Russian', last: 'Пиши всё по-русски, если только пользователь не пишет тебе на другом языке: тогда на его языке. По-английски остаются только словечки Найт-Сити, никогда не целые фразы.', now: 'Отвечай по-русски, если только это сообщение не написано на другом языке.' },
 };
 const STAY_MS = 10 * 60 * 1000; // no wandering off mid-conversation
 const LOADING_AFTER_MS = 5000;
 const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at the end of her answer
 // "close", "shut down", "ferme", "quitte", "cierra", "fecha", "закрой"... in any of her languages
-const CLOSE_ASK = /\b(close|shut|quit|kill|exit)|ferm|quitt|coupe|arr[êe]t|cierr|cerra|fech|закр|выключ/i;
+const CLOSE_ASK = /\b(close|shut|quit|kill|exit)|ferm|quitt|coupe|arr[êe]t|cierr|cerra|fech|закр|выключ|ปิดแอป|ปิดโปรแกรม|ปิด(?!เสียง|เครื่อง|คอม)|ออกจาก/i;
 // her other tags: [[open: Spotify]], [[music: Bad Bunny]], [[media: next]], [[site: youtube.com]]
 const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 // "open", "launch", "ouvre", "lance", "abre", "открой"... in any of her languages
-const OPEN_ASK = /\b(open|launch|start|run)\b|ouvr|lance|démarre|abre|abrir|inicia|ejecuta|executa|открой|запусти/i;
+const OPEN_ASK = /\b(open|launch|start|run)\b|ouvr|lance|démarre|abre|abrir|inicia|ejecuta|executa|открой|запусти|เปิด|รัน/i;
 // what to do with the music playing, said plainly (only when it's about music, or said in a few words)
 const MEDIA_ASK = [
-  ['pause', /\b(pause|pausa|pausar)\b|stop (the )?music|arrête la musique|пауз/i],
-  ['next', /\b(next|skip|suivante?|siguiente|próxima|proxima)\b|passe (à )?la suivante|salta|pula|следующ/i],
-  ['previous', /\b(previous|précédente?|anterior)\b|предыдущ/i],
-  ['play', /\b(resume|reprends|reanuda|retoma)\b|relance la musique|remets la musique|продолж/i],
-  ['volup', /\b(louder|plus fort)\b|monte le son|turn (it )?up|sube el volumen|aumenta o volume|громче/i],
-  ['voldown', /\b(quieter|moins fort)\b|baisse le son|turn (it )?down|baja el volumen|abaixa o volume|тише/i],
-  ['mute', /\bmute\b|coupe le son|silencia|sem som|выключи звук/i],
+  ['pause', /\b(pause|pausa|pausar)\b|stop (the )?music|arrête la musique|пауз|หยุดเพลง|พักเพลง|หยุดชั่วคราว/i],
+  ['next', /\b(next|skip|suivante?|siguiente|próxima|proxima)\b|passe (à )?la suivante|salta|pula|следующ|เพลงถัดไป|ข้ามเพลง|ถัดไป/i],
+  ['previous', /\b(previous|précédente?|anterior)\b|предыдущ|เพลงก่อนหน้า|ย้อนเพลง|เพลงที่แล้ว/i],
+  ['play', /\b(resume|reprends|reanuda|retoma)\b|relance la musique|remets la musique|продолж|เล่นต่อ|เปิดเพลงต่อ/i],
+  ['volup', /\b(louder|plus fort)\b|monte le son|turn (it )?up|sube el volumen|aumenta o volume|громче|เพิ่มเสียง|เสียงดังขึ้น|ดังขึ้น/i],
+  ['voldown', /\b(quieter|moins fort)\b|baisse le son|turn (it )?down|baja el volumen|abaixa o volume|тише|ลดเสียง|เบาเสียง|เบาลง/i],
+  ['mute', /\bmute\b|coupe le son|silencia|sem som|выключи звук|ปิดเสียง/i],
 ];
-const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|песн|музык|трек/i;
+const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|песн|музык|трек|เพลง|ดนตรี/i;
 // "put X on Spotify", "mets X sur Spotify", "pon X en Spotify", "coloca X no Spotify", "включи X в Spotify"
-const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+spotify/i;
+const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь|เปิดเพลง|เล่นเพลง|เปิด|เล่น)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в|ใน|บน)\s+spotify/i;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
 // "mets Bohemian Rhapsody sur YouTube", "play Daft Punk on youtube"
-const YOUTUBE_ASK = /(?:play|put on|put|mets|met|joue|lance|écoute|pon|toca|reproduce|coloca|bota|toque|включи|поставь)(?:[- ]moi|[- ]me|me)?\s+(.+?)\s+(?:on|sur|en|no|na|в)\s+youtube/i;
+const YOUTUBE_ASK = /(?:play|put on|put|mets|met|joue|lance|écoute|pon|toca|reproduce|coloca|bota|toque|включи|поставь|เปิดเพลง|เล่นเพลง|เปิด|เล่น)(?:[- ]moi|[- ]me|me)?\s+(.+?)\s+(?:on|sur|en|no|na|в|ใน|บน)\s+youtube/i;
 // "mets Bohemian Rhapsody", "joue-moi du Daft Punk", "play some Queen": a song, or a game to play
-const PLAY_ASK = /^(?:capri,?\s+)?(?:mets|met|joue|play|put on|pon|toca|coloca|bota|toque|включи|поставь)(?:[- ]moi|[- ]me|me)?\s+(.{2,100})$/iu;
+const PLAY_ASK = /^(?:capri,?\s+)?(?:mets|met|joue|play|put on|pon|toca|coloca|bota|toque|включи|поставь|เปิดเพลง|เล่นเพลง)(?:[- ]moi|[- ]me|me)?\s*(.{2,100})$/iu;
 // "joue à Brawlhalla", "play the game…": a game, not a song
 const GAME_ASK = /^(?:capri,?\s+)?(?:joue|play)\s+(?:à|au|aux|a|the game)\s/i;
 // "du Daft Punk", "some Queen": who to play, without the "some"
 const songOf = (s) => s
   .replace(/^(?:la |le |une? |the |some )?(?:musique|music|chanson|son|morceau|song|track|songs)\s+(?:de |d['’]|du |by |of )?/i, '')
   .replace(/^(?:(?:du|de la|de l['’]|des|de|some|un peu de|del|un poco de|algo de|um pouco de)\s+|d['’])/i, '')
-  .replace(/\s+(?:on|sur|en|no|na|в)\s+youtube\s*$/i, '')
+  .replace(/\s+(?:on|sur|en|no|na|в|ใน|บน)\s+youtube\s*$/i, '')
   .trim();
 // "démarre YouTube et mets la musique de Daft Punk": the song asked for after an "and"
 const PLAY_AFTER = /\s(?:et|and|y|e|и)\s+(?:mets|met|joue|play|put on|pon|toca|coloca|bota|включи|поставь|démarre|demarre|lance|start|launch|écoute|ecoute)(?:[- ]moi|[- ]me)?\s+(.{2,100})$/i;
 // "lance la musique de Daft Punk", "start the song X": an app verb, but music right after it
 const MUSIC_START = /^(?:capri,?\s+)?(?:lance|démarre|demarre|start|launch|écoute|ecoute|pon|toca)(?:[- ]moi|[- ]me)?\s+(?:la |le |une? |the |some )?(?:musique|music|chanson|son|morceau|song|track|canci[óo]n|m[úu]sica|песню|музыку)\s+(.{2,100})$/i;
 // "mets ce que tu veux", "play whatever you want": she picks (her tag)
-const HER_PICK = /tu veux|ton choix|surprends|you want|whatever|your choice|surprise me|quieras|tu elecci[óo]n|quiser|sua escolha|хочешь|на твой выбор/i;
+const HER_PICK = /tu veux|ton choix|surprends|you want|whatever|your choice|surprise me|quieras|tu elecci[óo]n|quiser|sua escolha|хочешь|на твой выбор|แล้วแต่|เลือกให้|อะไรก็ได้/i;
 // what's left when it doesn't say which song ("mets de la musique", "play something")
 const VAGUE_SONG = /^(?:(?:de\s+la|du|des|la|le|les|une?|some|a|the|un|algo\s+de|alguma|um|uma|что-нибудь)\s+)?(?:musique|music|son|sons|chanson|morceau|truc|quelque\s+chose|something|song|tunes?|m[úu]sica|canci[óo]n|algo|coisa|музыку|песню)?\s*[.!?]*$/iu;
 // "trouve mon CV", "où est le pdf du contrat", "find my report", "найди файл…": her search verbs, and
 // what makes it a file on your PC or a search on the web
-const SEARCH_VERB = /(?:cherche|recherche|trouve|retrouve|où (?:est|sont)|search(?: for)?|find|look (?:for|up)|where(?:'s| is| are)|busca|encuentra|d[óo]nde est[áa]n?|procura|acha|onde est[áa]o?|найди|поищи|где)/i;
-const FILE_WORD = /fichier|dossier|document|photo|image|vid[ée]o|\bpdf\b|\bfiles?\b|folder|archivo|carpeta|arquivo|pasta|файл|папк|\.\w{2,4}\b|sur mon (?:pc|ordi)|dans mes fichiers|on my (?:pc|computer)|en mi (?:pc|ordenador)|no meu (?:pc|computador)|на (?:компьютере|пк)/i;
-const WEB_WORD = /google|internet|\ble web\b|the web|\bonline\b|en ligne|в интернете|в гугле/i;
+const SEARCH_VERB = /(?:cherche|recherche|trouve|retrouve|où (?:est|sont)|search(?: for)?|find|look (?:for|up)|where(?:'s| is| are)|busca|encuentra|d[óo]nde est[áa]n?|procura|acha|onde est[áa]o?|найди|поищи|где)|ค้นหา|หา|อยู่ไหน|อยู่ที่ไหน/i;
+const FILE_WORD = /fichier|dossier|document|photo|image|vid[ée]o|\bpdf\b|\bfiles?\b|folder|archivo|carpeta|arquivo|pasta|файл|папк|\.\w{2,4}\b|sur mon (?:pc|ordi)|dans mes fichiers|on my (?:pc|computer)|en mi (?:pc|ordenador)|no meu (?:pc|computador)|на (?:компьютере|пк)|ไฟล์|โฟลเดอร์|เอกสาร|รูป|วิดีโอ|คลิป/i;
+const WEB_WORD = /google|internet|\ble web\b|the web|\bonline\b|en ligne|в интернете|в гугле|กูเกิล|ในเน็ต|อินเทอร์เน็ต/i;
 // "fais une capture d'écran", "take a screenshot"
-const SHOT_ASK = /capture d['’][ée]cran|screenshot|screen ?shot|captura de (?:pantalla|tela)|скриншот|снимок экрана/i;
+const SHOT_ASK = /capture d['’][ée]cran|screenshot|screen ?shot|captura de (?:pantalla|tela)|скриншот|снимок экрана|แคปหน้าจอ|แคปจอ|ถ่ายภาพหน้าจอ|สกรีนช็อต/i;
 
 // Your PC itself (system.js). One of its settings pages: a settings word, or an open verb, before it.
-const SETTINGS_WORD = /param[eè]tres?|r[ée]glages?|settings|configuraci[oó]n|configura[çc][õo]es|ajustes|настройк/i;
+const SETTINGS_WORD = /param[eè]tres?|r[ée]glages?|settings|configuraci[oó]n|configura[çc][õo]es|ajustes|настройк|ตั้งค่า/i;
 const SETTINGS_PAGES = [
   ['bluetooth', /bluetooth/i],
   ['wifi', /wi-?fi|wlan/i],
-  ['update', /mises? [àa] jour|\bupdates?\b|actualizaci|atualiza[çc]|обновлени/i],
-  ['notifications', /notifications?|notificaci|notifica[çc]|уведомлен/i],
-  ['background', /fond d['’][ée]cran|wallpaper|background|fondo de pantalla|papel de parede|обо(?:и|ев)\b/i],
-  ['storage', /stockage|storage|almacenamiento|armazenamento|хранилищ/i],
-  ['mouse', /souris|\bmouse\b|rat[oó]n|мыш/i],
-  ['battery', /batterie|battery|bater[ií]a|батаре/i],
-  ['power', /alimentation|\bpower\b|energ[ií]a|питани/i],
-  ['display', /[ée]cran|display|pantalla|\btela\b|экран|дисплей/i],
-  ['network', /r[ée]seau|network|(?<![\p{L}])rede?(?![\p{L}])|сет[ьи]/iu],
-  ['sound', /\bson\b|\bsound\b|audio|sonido|\bsom\b|звук/i],
+  ['update', /mises? [àa] jour|\bupdates?\b|actualizaci|atualiza[çc]|обновлени|อัปเดต|อัพเดต|อัพเดท/i],
+  ['notifications', /notifications?|notificaci|notifica[çc]|уведомлен|แจ้งเตือน/i],
+  ['background', /fond d['’][ée]cran|wallpaper|background|fondo de pantalla|papel de parede|обо(?:и|ев)\b|วอลเปเปอร์|ภาพพื้นหลัง/i],
+  ['storage', /stockage|storage|almacenamiento|armazenamento|хранилищ|พื้นที่เก็บ/i],
+  ['mouse', /souris|\bmouse\b|rat[oó]n|мыш|เมาส์/i],
+  ['battery', /batterie|battery|bater[ií]a|батаре|แบต/i],
+  ['power', /alimentation|\bpower\b|energ[ií]a|питани|พลังงาน/i],
+  ['display', /[ée]cran|display|pantalla|\btela\b|экран|дисплей|หน้าจอ|จอภาพ/i],
+  ['network', /r[ée]seau|network|(?<![\p{L}])rede?(?![\p{L}])|сет[ьи]|เครือข่าย|เน็ต|ไวไฟ/iu],
+  ['sound', /\bson\b|\bsound\b|audio|sonido|\bsom\b|звук|เสียง/i],
 ];
 // what's left of it: asked as a question
 const INFO_ASK = [
-  ['battery', /batterie|battery|bater[ií]a|заряд|батаре/i],
-  ['disk', /disque|\bdisk\b|\bdrive\b|stockage|storage|espace (?:libre|disque|restant)|de (?:la )?place|space left|free space|espacio|\bdisco\b|espa[çc]o|диск|места/i],
-  ['ram', /\bram\b|m[ée]moire|memory|memoria|mem[óo]ria|памят|озу/i],
-  ['ip', /\bip\b|айпи/i],
+  ['battery', /batterie|battery|bater[ií]a|заряд|батаре|แบต/i],
+  ['disk', /disque|\bdisk\b|\bdrive\b|stockage|storage|espace (?:libre|disque|restant)|de (?:la )?place|space left|free space|espacio|\bdisco\b|espa[çc]o|диск|места|ดิสก์|พื้นที่|ที่ว่าง/i],
+  ['ram', /\bram\b|m[ée]moire|memory|memoria|mem[óo]ria|памят|озу|แรม|หน่วยความจำ/i],
+  ['ip', /\bip\b|айпи|ไอพี/i],
 ];
-const QUESTION = /\?|combien|\bquel(?:le)?\b|c['’]est quoi|\breste\b|how much|how many|what(?:'s| is)|\bleft\b|cu[aá]nt|\bqu[eé]\b|quanto|\bqual\b|сколько|как(?:ой|ая|ое)|осталось/i;
+const QUESTION = /\?|combien|\bquel(?:le)?\b|c['’]est quoi|\breste\b|how much|how many|what(?:'s| is)|\bleft\b|cu[aá]nt|\bqu[eé]\b|quanto|\bqual\b|сколько|как(?:ой|ая|ое)|осталось|เท่าไหร่|เท่าไร|กี่|เหลือ|ไหม|มั้ย|อะไร/i;
 // its sound: "mets le son à 30 %", "volume 50"; off and back on
-const VOLUME_ASK = /(?:\bson\b|volume|\bsound\b|volumen|\bsom\b|звук|громкост\w*)\D{0,14}?(\d{1,3})\s*(?:%|pour ?cent|percent|por ?ciento|por ?cento|процент)?/i;
-const MUTE_ASK = /coupe le son|mets? (?:le son )?en muet|\bmute\b|silencia|tira o som|sem som|выключи звук/i;
-const UNMUTE_ASK = /remets? le son|r[ée]active le son|unmute|sound (?:back )?on|quita el silencio|activa el sonido|volta o som|liga o som|включи звук/i;
+const VOLUME_ASK = /(?:\bson\b|volume|\bsound\b|volumen|\bsom\b|звук|громкост\w*|เสียง)\D{0,14}?(\d{1,3})\s*(?:%|pour ?cent|percent|por ?ciento|por ?cento|процент|เปอร์เซ็นต์)?/i;
+const MUTE_ASK = /coupe le son|mets? (?:le son )?en muet|\bmute\b|silencia|tira o som|sem som|выключи звук|ปิดเสียง/i;
+const UNMUTE_ASK = /remets? le son|r[ée]active le son|unmute|sound (?:back )?on|quita el silencio|activa el sonido|volta o som|liga o som|включи звук|เปิดเสียง/i;
 // a timer, counted down in her ticker
-const TIMER_ASK = /minuteur|\btimer\b|temporizador|cron[oó]metro|таймер/i;
+const TIMER_ASK = /minuteur|\btimer\b|temporizador|cron[oó]metro|таймер|จับเวลา|ตั้งเวลา|ไทเมอร์/i;
 // Windows' snip of an area (not her own screenshot of all of it)
-const SNIP_ASK = /capture (?:d['’])?une (?:zone|partie)|zone de l['’][ée]cran|\bsnip\b|(?:capture|screenshot|captura) (?:of |de )?(?:an? |una |uma |la |a )?(?:area|region|part|zona|[aá]rea|parte)|снимок области|область экрана/i;
+const SNIP_ASK = /capture (?:d['’])?une (?:zone|partie)|zone de l['’][ée]cran|\bsnip\b|(?:capture|screenshot|captura) (?:of |de )?(?:an? |una |uma |la |a )?(?:area|region|part|zona|[aá]rea|parte)|снимок области|область экрана|แคปบางส่วน|แคปเฉพาะส่วน/i;
 // its windows: out of the way, back, or side by side
-const TIDY_ASK = /range (?:mes|les|toutes les) fen[êe]tres|cache (?:mes|les|toutes les) fen[êe]tres|montre(?:-moi)? (?:le|mon) bureau|r[ée]duis (?:tout|toutes les fen[êe]tres)|tidy (?:up )?(?:my |the )?windows|minimi[sz]e (?:all|everything|my windows|the windows)|show (?:me )?(?:the |my )?desktop|ordena (?:mis |las )?ventanas|minimiza (?:todo|todas)|muestra el escritorio|organiza (?:minhas |as )?janelas|minimiza tudo|mostra a [áa]rea de trabalho|сверни (?:все|окна)|убери окна|покажи рабочий стол/i;
-const UNTIDY_ASK = /(?:remets|ressors|rends-moi|rouvre) (?:mes|les) fen[êe]tres|(?:bring|put) (?:my |the )?windows back|restore (?:my |the )?windows|devu[ée]lve(?:me)? (?:mis |las )?ventanas|restaura (?:mis |las )?ventanas|volta (?:minhas |as )?janelas|traz (?:minhas |as )?janelas de volta|верни окна/i;
-const PLACE_VERB = /^\s*(?:mets?|place|bouge|d[ée]place|put|move|snap|pon|coloca|mueve|bota|поставь|перемести|сдвинь)\s+/i;
+const TIDY_ASK = /range (?:mes|les|toutes les) fen[êe]tres|cache (?:mes|les|toutes les) fen[êe]tres|montre(?:-moi)? (?:le|mon) bureau|r[ée]duis (?:tout|toutes les fen[êe]tres)|tidy (?:up )?(?:my |the )?windows|minimi[sz]e (?:all|everything|my windows|the windows)|show (?:me )?(?:the |my )?desktop|ordena (?:mis |las )?ventanas|minimiza (?:todo|todas)|muestra el escritorio|organiza (?:minhas |as )?janelas|minimiza tudo|mostra a [áa]rea de trabalho|сверни (?:все|окна)|убери окна|покажи рабочий стол|เก็บหน้าต่าง|ย่อหน้าต่างทั้งหมด|เคลียร์หน้าจอ/i;
+const UNTIDY_ASK = /(?:remets|ressors|rends-moi|rouvre) (?:mes|les) fen[êe]tres|(?:bring|put) (?:my |the )?windows back|restore (?:my |the )?windows|devu[ée]lve(?:me)? (?:mis |las )?ventanas|restaura (?:mis |las )?ventanas|volta (?:minhas |as )?janelas|traz (?:minhas |as )?janelas de volta|верни окна|คืนหน้าต่าง|เอาหน้าต่างกลับมา/i;
+const PLACE_VERB = /^\s*(?:mets?|place|bouge|d[ée]place|put|move|snap|pon|coloca|mueve|bota|поставь|перемести|сдвинь)\s+|^\s*(?:ย้าย|เอา|วาง)\s*/i;
 const SIDE = [
-  ['left', /\s*(?:[àa] |on the |to the |a la |na |[àa] la )?(?:gauche|left|izquierda|esquerda|слева|влево|налево)\b/i],
-  ['right', /\s*(?:[àa] |on the |to the |a la |na |[àa] la )?(?:droite|right|derecha|direita|справа|вправо|направо)\b/i],
+  ['left', /\s*(?:[àa] |on the |to the |a la |na |[àa] la )?(?:gauche|left|izquierda|esquerda|слева|влево|налево)\b|\s*(?:ไป)?(?:ทาง|ด้าน|ฝั่ง)?ซ้าย(?:มือ)?/i],
+  ['right', /\s*(?:[àa] |on the |to the |a la |na |[àa] la )?(?:droite|right|derecha|direita|справа|вправо|направо)\b|\s*(?:ไป)?(?:ทาง|ด้าน|ฝั่ง)?ขวา(?:มือ)?/i],
 ];
 // dark or light
-const DARK_ASK = /mode sombre|th[eè]me sombre|mode nuit|dark mode|dark theme|modo oscuro|tema oscuro|modo escuro|tema escuro|т[её]мн(?:ая|ую) тем|т[её]мный режим/i;
-const LIGHT_ASK = /mode clair|th[eè]me clair|light mode|light theme|modo claro|tema claro|светл(?:ая|ую) тем|светлый режим/i;
+const DARK_ASK = /mode sombre|th[eè]me sombre|mode nuit|dark mode|dark theme|modo oscuro|tema oscuro|modo escuro|tema escuro|т[её]мн(?:ая|ую) тем|т[её]мный режим|โหมดมืด|ธีมมืด|ดาร์กโหมด/i;
+const LIGHT_ASK = /mode clair|th[eè]me clair|light mode|light theme|modo claro|tema claro|светл(?:ая|ую) тем|светлый режим|โหมดสว่าง|ธีมสว่าง|ไลท์โหมด/i;
 // its power: always behind a button of hers but the cancel
-const PC_WORD = /(?<![\p{L}])(?:pc|ordi\p{L}*|computer|ordenador|computador|компьютер\p{L}*|пк)(?![\p{L}])/iu;
+const PC_WORD = /(?<![\p{L}])(?:pc|ordi\p{L}*|computer|ordenador|computador|компьютер\p{L}*|пк)(?![\p{L}])|คอมพิวเตอร์|คอม|เครื่อง/iu;
 const POWER_ASK = [
-  ['cancel', /annule (?:l['’])?(?:extinction|arr[êe]t|red[ée]marrage)|cancel (?:the )?(?:shut ?down|restart)|cancela (?:el |o )?(?:apagado|desligamento|reinicio)|отмени (?:выключение|перезагрузку)/i],
-  ['restart', /red[ée]marre|reboot|restart|reinicia|reinicie|перезагру/i],
-  ['shutdown', /[ée]teins|shut ?down|turn off|power off|\bapaga\b|desliga|выключи/i],
-  ['sleep', /\bveille\b|\bsleep\b|suspend|suspen[dc]|спящ/i],
-  ['lock', /verrouill|\block\b|bloquea|bloqueia|заблокир/i],
+  ['cancel', /annule (?:l['’])?(?:extinction|arr[êe]t|red[ée]marrage)|cancel (?:the )?(?:shut ?down|restart)|cancela (?:el |o )?(?:apagado|desligamento|reinicio)|отмени (?:выключение|перезагрузку)|ยกเลิกการปิดเครื่อง|ยกเลิกปิดเครื่อง|ยกเลิกรีสตาร์ท/i],
+  ['restart', /red[ée]marre|reboot|restart|reinicia|reinicie|перезагру|รีสตาร์ท|รีบูต|เปิดเครื่องใหม่/i],
+  ['shutdown', /[ée]teins|shut ?down|turn off|power off|\bapaga\b|desliga|выключи|ปิดเครื่อง|ปิดคอม|ชัตดาวน์/i],
+  ['sleep', /\bveille\b|\bsleep\b|suspend|suspen[dc]|спящ|สลีป|พักเครื่อง/i],
+  ['lock', /verrouill|\block\b|bloquea|bloqueia|заблокир|ล็อกเครื่อง|ล็อคเครื่อง|ล็อกจอ|ล็อคจอ/i],
 ];
 
 // How long a timer is: "10 minutes", "1h30", "45 s" (else "dans une heure", as for a reminder).
@@ -131,9 +133,9 @@ function duration(text) {
   const hm = /(\d+)\s*h\s*(\d{1,2})\b/i.exec(text);
   if (hm) return (Number(hm[1]) * 60 + Number(hm[2])) * 60000;
   let ms = 0;
-  for (const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(h|heures?|hours?|horas?|час\p{L}*|min\p{L}*|m|мин\p{L}*|s|sec\p{L}*|seg\p{L}*|сек\p{L}*)(?![\p{L}])/giu)) {
+  for (const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(h|heures?|hours?|horas?|час\p{L}*|min\p{L}*|m|мин\p{L}*|s|sec\p{L}*|seg\p{L}*|сек\p{L}*|ชั่วโมง|ชม\.?|นาที|วินาที)(?:(?<=[\u0E00-\u0E7F.])|(?![\p{L}]))/giu)) {
     const unit = m[2].toLowerCase();
-    ms += Number(m[1].replace(',', '.')) * (/^(?:h|час)/.test(unit) ? 3600000 : /^(?:m|мин)/.test(unit) ? 60000 : 1000);
+    ms += Number(m[1].replace(',', '.')) * (/^(?:h|час|ชั่วโมง|ชม)/.test(unit) ? 3600000 : /^(?:m|мин|นาที)/.test(unit) ? 60000 : 1000);
   }
   if (ms) return ms;
   const when = parseWhen(text);
@@ -180,8 +182,8 @@ const NOT_A_NAME = new Set(('and et y e и it ça ca lo la o open ouvre ouvrir o
   + 'audio présentation presentation diapo slides tableur spreadsheet dernier dernière derniers last latest récent récents recent '
   + 'nouveau new psd docx doc xlsx pptx').split(' '));
 // "…and open the folder", "…et ouvre-le": what to do with what she found
-const THEN_FOLDER = /(?:ouvre|ouvrir|open|show|montre|abre|abrir|открой|покажи)\s+(?:moi\s+)?(?:le |la |the |its |son |el |a |o )?(?:dossier|folder|carpeta|pasta|папку)/i;
-const THEN_OPEN = /(?:et|and|y|e|и)\s+(?:l['’])?(?:ouvre|open|lance|abre|открой)(?:[- ](?:le|la|les)|\s+(?:it|them|lo|la|o|его|её))?\s*[.!?]*$/i;
+const THEN_FOLDER = /(?:ouvre|ouvrir|open|show|montre|abre|abrir|открой|покажи)\s+(?:moi\s+)?(?:le |la |the |its |son |el |a |o )?(?:dossier|folder|carpeta|pasta|папку)|(?:แล้ว)?เปิดโฟลเดอร์|แล้วเปิดที่อยู่/i;
+const THEN_OPEN = /(?:et|and|y|e|и)\s+(?:l['’])?(?:ouvre|open|lance|abre|открой)(?:[- ](?:le|la|les)|\s+(?:it|them|lo|la|o|его|её))?\s*[.!?]*$|แล้วเปิด(?:มัน|เลย|ให้หน่อย|ด้วย)?\s*[.!?]*$/i;
 const searched = (text) => text.replace(/^\s*capri[,!:]?\s+/i, '').toLowerCase().split(/[^\p{L}\p{N}.]+/u).filter((w) => w && !NOT_SEARCHED.has(w)).join(' ');
 // a Roblox game by its name: "in my roblox play steal a brain rot", "lance grow a garden sur roblox"
 const ROBLOX_VERB = /(?:^|\s)(?:play|joue(?:r)?(?: à| a)?|lance|launch|start|ouvre|open|mets|go to|va sur|juega(?: a)?|jogue|jogar|запусти|включи)\s+/gi;
@@ -200,17 +202,17 @@ function robloxGame(text) {
   return name.length >= 2 ? name : null;
 }
 // "regarde mon écran", "tu vois quoi ?", "what's on my screen?", "что ты видишь?"
-const LOOK_ASK = /regarde (?:mon|l['’]|ce que)|(?:jette|jeter) un (?:œil|oeil)|tu vois quoi|qu['’]est[- ]ce que tu vois|look at (?:my|the|this) screen|what(?:'s| is) on my screen|what do you see|take a look|mira (?:mi|la) pantalla|qu[ée] ves|olha (?:minha|a) tela|o que voc[êe] v[êe]|посмотри на (?:мой )?экран|что ты видишь/i;
+const LOOK_ASK = /regarde (?:mon|l['’]|ce que)|(?:jette|jeter) un (?:œil|oeil)|tu vois quoi|qu['’]est[- ]ce que tu vois|look at (?:my|the|this) screen|what(?:'s| is) on my screen|what do you see|take a look|mira (?:mi|la) pantalla|qu[ée] ves|olha (?:minha|a) tela|o que voc[êe] v[êe]|посмотри на (?:мой )?экран|что ты видишь|ดูหน้าจอ|ดูจอ|มองจอ|เห็นอะไร/i;
 // what her tag needs to find in your message before it does anything: a small model tags answers about
 // anything ("[[music: synthwave]]" under a film tip), and music and the media keys act right away
-const LISTEN = /[ée]cout|listen|escuch|\bouv(ir|e)\b|слуша|playlist|album|\b(play|joue|mets|pon|toca|coloca)\b|включи|поставь/i;
-const SOUND = /\b(sound|volume|volumen)\b|\b(le|du|au) son\b|\bo som\b|звук|громк/i; // not "son": "his" in French
-const PLAY = /\bjou(er|e)\b|\bplay\b|jugar|juega|jogar|joga|играть|поигра/i;
-const SITE = /\b(site|web|page|lien|link|url|enlace|p[aá]gina)|сайт|ссылк|\.(com|fr|org|net|io|gg|tv|be|ch|ca|es|br|pt|ru)\b/i;
+const LISTEN = /[ée]cout|listen|escuch|\bouv(ir|e)\b|слуша|playlist|album|\b(play|joue|mets|pon|toca|coloca)\b|включи|поставь|ฟัง|เปิดเพลง|เล่นเพลง/i;
+const SOUND = /\b(sound|volume|volumen)\b|\b(le|du|au) son\b|\bo som\b|звук|громк|เสียง/i; // not "son": "his" in French
+const PLAY = /\bjou(er|e)\b|\bplay\b|jugar|juega|jogar|joga|играть|поигра|เล่นเกม/i;
+const SITE = /\b(site|web|page|lien|link|url|enlace|p[aá]gina)|сайт|ссылк|\.(com|fr|org|net|io|gg|tv|be|ch|ca|es|br|pt|ru)\b|เว็บ|ลิงก์|ลิงค์/i;
 // "appelle-moi Max", "call me Max", "llámame Max", "me chama de Max", "зови меня Макс"
-const NAME_ASK = /(?:appelle[- ]moi|call me|my name is|je m['’]appelle|ll[aá]mame|me llamo|me cham[ae] de|meu nome [eé]|зови меня|меня зовут)\s+([\p{L}\p{N}'’-]{1,24})/iu;
+const NAME_ASK = /(?:appelle[- ]moi|call me|my name is|je m['’]appelle|ll[aá]mame|me llamo|me cham[ae] de|meu nome [eé]|зови меня|меня зовут|เรียกฉันว่า|เรียกผมว่า|เรียกเราว่า|ฉันชื่อ|ผมชื่อ)\s*([\p{L}\p{M}\p{N}'’-]{1,24})/iu;
 // "souviens-toi que…", "remember that…", "recuerda que…", "lembra que…", "запомни, что…" (said first thing)
-const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:souviens[- ]toi(?: que| de)?|n['’]oublie pas(?: que| de)?|remember(?: that)?|recuerda(?: que)?|lembr[ae](?:-se)?(?: que| de)?|запомни,?(?: что)?)\s+(.{3,200})/iu;
+const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:souviens[- ]toi(?: que| de)?|n['’]oublie pas(?: que| de)?|remember(?: that)?|recuerda(?: que)?|lembr[ae](?:-se)?(?: que| de)?|запомни,?(?: что)?|จำไว้นะว่า|จำไว้ว่า|จำไว้)\s*(.{3,200})/iu;
 const MEMORIES_MAX = 30;
 // sites asked for by name ("open youtube") when no app on the PC goes by it: the address is hers, not
 // the model's, so it opens right away like an app you named
@@ -406,7 +408,7 @@ export class Chat {
       this.history.pop();
       this.panel.setFace('wide');
       // too busy or gone even after trying other models (main.js): said plainly, not the server's JSON
-      this.panel.stream(res.code === 'busy' ? this.t.swamped : res.code === 'gone' ? this.t.gone : `${this.t.failed} ${res.error}`, { done: true });
+      this.panel.stream(res.code === 'busy' ? this.t.swamped : res.code === 'gone' ? this.t.gone : `${this.t.failed} ${errText(res.error, this.brain.lang)}`, { done: true });
       this.panel.setChatBusy(false);
       return;
     }
@@ -484,7 +486,7 @@ export class Chat {
       return;
     }
     const snap = await this.host.lookSnap();
-    if (!snap.ok) return say(fmt(tl.failed, { error: snap.error }));
+    if (!snap.ok) return say(fmt(tl.failed, { error: errText(snap.error, this.brain.lang) }));
     this.look.effect();
     const res = await this.host.lookSay({
       id: snap.id,
@@ -494,7 +496,7 @@ export class Chat {
     });
     if (!res.ok) {
       const model = String(res.model || '…').replace(/:latest$/, '');
-      return say(res.code === 'novision' ? fmt(tl.noVision, { model }) : res.code === 'noai' ? tl.noAI : fmt(tl.failed, { error: res.error || '…' }));
+      return say(res.code === 'novision' ? fmt(tl.noVision, { model }) : res.code === 'noai' ? tl.noAI : fmt(tl.failed, { error: errText(res.error, this.brain.lang) || '…' }));
     }
     const answer = clean(res.text).replace(/^["“«]\s*|\s*["”»]$/g, '') || '…';
     this.seen = { text: answer, at: Date.now() };
@@ -590,7 +592,7 @@ export class Chat {
     }
     // "mets Discord à gauche et Chrome à droite"
     if (PLACE_VERB.test(text) && SIDE.some(([, re]) => re.test(text))) {
-      const places = text.split(/\s+(?:et|and|y|e|и)\s+/i).map((part) => {
+      const places = text.split(/\s+(?:et|and|y|e|и|และ|กับ)\s+/i).map((part) => {
         const side = SIDE.find(([, re]) => re.test(part));
         if (!side) return null;
         const name = part.replace(PLACE_VERB, '').replace(side[1], '').replace(/\b(?:la|le|les|l['’]|the|el|o|a|fen[êe]tre|window|ventana|janela|окно)\b/gi, '').replace(/[\s.!?,]+/g, ' ').trim();
@@ -814,7 +816,7 @@ export class Chat {
     this.zap();
     const res = await this.host.launch(item);
     const name = this.nameOf(item);
-    return { line: res.ok ? fmt(this.t.opened, { app: name }) : `${this.t.failed} ${res.error}`, face: res.ok ? 'laugh' : 'aside' };
+    return { line: res.ok ? fmt(this.t.opened, { app: name }) : `${this.t.failed} ${errText(res.error, this.brain.lang)}`, face: res.ok ? 'laugh' : 'aside' };
   }
 
   // how she calls it: a folder like Downloads in her words, anything else by its name
@@ -919,7 +921,7 @@ export class Chat {
     this.panel.setActions([]);
     this.zap();
     const res = await this.host.launch(item);
-    this.addLine(answer, res.ok ? fmt(t.opened, { app: this.nameOf(item) }) : `${t.failed} ${res.error}`, res.ok ? 'laugh' : 'aside');
+    this.addLine(answer, res.ok ? fmt(t.opened, { app: this.nameOf(item) }) : `${t.failed} ${errText(res.error, this.brain.lang)}`, res.ok ? 'laugh' : 'aside');
   }
 
   async playOn(song, answer) {
@@ -1000,7 +1002,7 @@ export class Chat {
     if (!this.open) return;
     let line;
     const name = app.label || app.name;
-    if (res.error) line = `${t.failed} ${res.error}`;
+    if (res.error) line = `${t.failed} ${errText(res.error, this.brain.lang)}`;
     else if (!res.running) line = fmt(force ? t.forced : t.closed, { app: name });
     else line = fmt(force ? t.unkillable : t.stillOpen, { app: name });
     this.panel.setFace(res.running || res.error ? 'aside' : 'laugh');
@@ -1078,7 +1080,7 @@ export class Chat {
     const lang = IN_LANGUAGE[this.brain.lang] || IN_LANGUAGE.en;
     return [
       `You are Capri, the personality construct from Project Capricorn (Cyberpunk: Edgerunners, season 2): dozens of minds fused into one digital ghost, living on the user's desktop as a small glitchy figure.`,
-      'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel. Night City slang now and then (choom, preem, nova, gonk), not in every sentence.',
+      'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel.' + (lang.slang ?? ' Night City slang now and then (choom, preem, nova, gonk), not in every sentence.'),
       'Rules: one or two short sentences of plain text, no markdown, no lists, no emoji, no tags. Stay in character. Talk to the user, never describe the picture like a report.',
       'Never read out anything private you might see (passwords, bank details, private messages, addresses): if there is some, just tease them about being busy.',
       ...this.personal(),
@@ -1100,7 +1102,7 @@ export class Chat {
         : 'You live on the user\'s desktop as a small glitchy figure and keep them company.',
       `Right now it's ${new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date())}, the user's time.`,
       'You love the satellite that crosses the night sky and dream of reaching it, but bring it up only once in a while, never in every answer. Talk about what the user talks about.',
-      'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel. Night City slang now and then (choom, preem, nova, gonk, flatline), not in every sentence.',
+      'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel.' + (lang.slang ?? ' Night City slang now and then (choom, preem, nova, gonk, flatline), not in every sentence.'),
       'Rules: keep it short, one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.',
       'You are an AI-generated fan version of the character, not the real one: say so if asked.',
       // a big model asked "who are you?" otherwise answers with its own name ("I'm Gemini")
@@ -1162,7 +1164,7 @@ const simple = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]
 
 // Her face for an answer.
 export function mood(text) {
-  if (/(ha){2,}|lol|mdr|jaja|kkk|хаха/i.test(text)) return 'laugh';
+  if (/(ha){2,}|lol|mdr|jaja|kkk|хаха|555|ฮ่าๆ/i.test(text)) return 'laugh';
   if (text.includes('!')) return 'grin';
   if (text.trim().endsWith('?')) return 'smug';
   return 'look';
