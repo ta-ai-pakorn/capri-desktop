@@ -1,3 +1,54 @@
+> ## 🇹🇭 Capri เวอร์ชันภาษาไทย
+>
+> Fork นี้คือ Capri ที่ผมแปลเป็นภาษาไทยทั้งตัวครับ ทั้งบทพูด เมนู แชต และคำสั่งพิมพ์ภาษาไทย
+> เช่น "เตือนอีก 20 นาทีให้เอาผ้าออก", "บ่าย 3 ประชุม", "เปิด Spotify", "แคปหน้าจอ", "คอมช้า", "โหมดเกม"
+> ต้นฉบับอยู่ที่ [mochiiwuff/capri-desktop](https://github.com/mochiiwuff/capri-desktop) (license PolyForm Noncommercial)
+>
+> **⚠️ อย่าใช้ไฟล์ `Capri-Setup.exe` ในหัวข้อ Install ด้านล่าง** อันนั้นเป็นเวอร์ชันภาษาอังกฤษของต้นฉบับ ไม่มีภาษาไทยครับ
+>
+> ### ติดตั้งแบบง่ายที่สุด: สั่ง Claude Code
+>
+> เปิด Claude Code แล้วพิมพ์ว่า
+>
+> ```
+> ดูลิงก์ https://github.com/ta-ai-pakorn/capri-desktop แล้วติดตั้ง Capri เวอร์ชันไทยให้หน่อย
+> ```
+>
+> ### ติดตั้งเอง (Windows)
+>
+> ต้องมี [Node.js](https://nodejs.org) 20 ขึ้นไป กับ [Git](https://git-scm.com) ก่อน แล้วเปิด PowerShell พิมพ์
+>
+> ```powershell
+> cd $HOME; git clone -b thai https://github.com/ta-ai-pakorn/capri-desktop; cd capri-desktop; npm install; node scripts/setup-thai.js
+> ```
+>
+> คำสั่ง `setup-thai.js` จะตั้งภาษาไทย, ปิดฟีเจอร์ปิดแท็บ AI อื่น, ติดตั้ง hook ให้ Capri มองเห็น Claude Code
+> (สำรองไฟล์ settings.json เดิมไว้ก่อน) และสร้าง shortcut **Capri** บน Desktop ให้ครับ
+>
+> หลังติดตั้ง เหลือ 3 อย่างที่ต้องทำเอง
+> 1. ดับเบิลคลิก **Capri** บน Desktop
+> 2. ปิด Claude Code ให้สนิทแล้วเปิดใหม่
+> 3. ใส่ AI ให้แชต: คลิกขวาที่ Capri › โมเดล AI › ตั้งค่ากับเธอ… (เช่น Gemini key ฟรีจาก [aistudio.google.com](https://aistudio.google.com))
+>
+> อัปเดตเวอร์ชันใหม่: `cd $HOME\capri-desktop; git pull; npm install`
+> ถอดออก: คลิกขวาที่ Capri › ถอด hook ของ Claude Code แล้วลบโฟลเดอร์ `capri-desktop` ทิ้งครับ
+>
+> <details>
+> <summary>For AI coding agents (Claude Code, Codex…) asked to install this</summary>
+>
+> Install the Thai version from this fork, **not** the upstream release `.exe` (it has no Thai). On Windows:
+>
+> 1. Make sure `git` and `node` (>= 20) exist (`git --version`, `node -v`). If missing, install with
+>    `winget install --id Git.Git -e` / `winget install --id OpenJS.NodeJS.LTS -e` (the user may need to approve a prompt), then open a new shell.
+> 2. `cd $HOME; git clone -b thai https://github.com/ta-ai-pakorn/capri-desktop; cd capri-desktop` (if the folder exists: `git pull`).
+> 3. `npm install`
+> 4. `node scripts/setup-thai.js` — sets Thai + `closePages: false` in `%APPDATA%\capri-desktop\config.json`,
+>    adds Capri's hooks to `~/.claude/settings.json` (keeps existing hooks, writes a backup), creates a desktop shortcut.
+> 5. Start Capri with the desktop shortcut (or `npm start` in the background).
+> 6. Tell the user, in Thai, the steps only they can do: fully quit and reopen Claude Code (hooks load at session start),
+>    and add a chat AI in Capri's menu (an API key is theirs to paste; never type it for them).
+> </details>
+
 **English** · [Français](README.fr.md)
 
 # Capri
