@@ -41,8 +41,11 @@ try {
 
 // 3. a desktop shortcut that opens her without a terminal
 if (process.platform === 'win32') {
-  const exe = path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe');
-  if (!fs.existsSync(exe)) {
+  // from plain Node, require('electron') gives the path to its program, downloading it first if
+  // `npm install` left that for the first launch
+  let exe = null;
+  try { exe = require(path.join(ROOT, 'node_modules', 'electron')); } catch { /* not installed */ }
+  if (!exe || !fs.existsSync(exe)) {
     say('✗ ยังไม่เจอ Electron: รัน npm install ก่อน แล้วค่อยรันไฟล์นี้อีกครั้ง');
   } else {
     const ps = [
