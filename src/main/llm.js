@@ -245,24 +245,50 @@ async function agyModels() {
   return names.sort((a, b) => rank(a) - rank(b));
 }
 
+// A message's text, and its picture if it carries one (OpenAI-style parts: her screen look)
+function parts(content) {
+  if (!Array.isArray(content)) return { text: String(content ?? ''), image: null };
+  const text = content.filter((p) => p?.type === 'text').map((p) => p.text).join('\n');
+  const url = content.find((p) => p?.type === 'image_url')?.image_url?.url || '';
+  const image = /^data:image\/\w+;base64,/.test(url) ? url.replace(/^data:image\/\w+;base64,/, '') : null;
+  return { text, image };
+}
+
 async function agyChat(model, messages, onDelta, signal) {
-  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+  const system = messages.filter((m) => m.role === 'system').map((m) => parts(m.content).text).join('\n');
   const talk = messages.filter((m) => m.role !== 'system');
-  const last = talk.pop();
+  const last = parts(talk.pop()?.content);
+  // her screen look: agy takes no picture on its command line, but reads one from its own folder,
+  // for this answer only (deleted right after)
+  const snap = last.image ? `snap-${randomUUID()}.jpg` : null;
+  if (snap) {
+    fs.mkdirSync(AGY_DIR, { recursive: true });
+    fs.writeFileSync(path.join(AGY_DIR, snap), Buffer.from(last.image, 'base64'));
+  }
   // Windows caps a command line near 32k characters: the oldest messages go first
-  const lines = talk.map((m) => `${m.role === 'assistant' ? 'Capri' : 'User'}: ${m.content}`);
-  while (lines.length && system.length + (last?.content || '').length + lines.join('\n').length > 22000) lines.shift();
+  const lines = talk.map((m) => `${m.role === 'assistant' ? 'Capri' : 'User'}: ${parts(m.content).text}`);
+  while (lines.length && system.length + last.text.length + lines.join('\n').length > 22000) lines.shift();
   const said = lines.join('\n');
   const prompt = [
-    'You are only playing a character in a desktop chat bubble. Do not use any tools, do not read or write files, do not run commands: just answer with her reply text, nothing else.',
+    snap
+      ? `You are only playing a character in a desktop chat bubble. Look at the image file ${snap} in the current folder (it is the user's screen right now), and nothing else: do not run commands, do not write or change files. Then answer with her reply text, nothing else.`
+      : 'You are only playing a character in a desktop chat bubble. Do not use any tools, do not read or write files, do not run commands: just answer with her reply text, nothing else.',
     '', '# Who you are and how you talk', system,
     ...(said ? ['', '# The conversation so far', said] : []),
-    '', '# The user just said', last?.content || '',
+    '', '# The user just said', last.text,
     '', 'Your reply, as her, plain text only:',
   ].join('\n');
-  const args = ['-p', prompt, '--output-format', 'json', '--mode', 'plan', '--sandbox', '--disable-slash-commands',
+  // plan mode (it can look, but not change anything) in a sandbox; no --disable-slash-commands: agy
+  // turns plan mode off when slash commands are disabled
+  const args = ['-p', prompt, '--output-format', 'json', '--mode', 'plan', '--sandbox',
     '--print-timeout', '120s', ...(model ? ['--model', model] : [])];
-  const { out, errors } = await agyRun(args, { signal, timeout: 130000 });
+  let out = '';
+  let errors = '';
+  try {
+    ({ out, errors } = await agyRun(args, { signal, timeout: 130000 }));
+  } finally {
+    if (snap) fs.rmSync(path.join(AGY_DIR, snap), { force: true });
+  }
   let result = null;
   try { result = JSON.parse(out.trim().split('\n').filter(Boolean).at(-1)); } catch { /* not JSON: say why below */ }
   if (!result) throw new Error(errors.trim().slice(0, 300) || out.trim().slice(0, 300) || 'Antigravity gave no answer');

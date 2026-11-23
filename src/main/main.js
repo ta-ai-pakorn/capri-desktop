@@ -641,7 +641,7 @@ async function sayAboutSnap({ id, persona, prompt, history = [] }) {
   const model = pickModel(cfg);
   if (!model) return { ok: false, code: 'noai' };
   if (cfg.provider === 'claude') return { ok: false, code: 'novision', model: 'Claude Code' };
-  if (cfg.provider === 'agy') return { ok: false, code: 'novision', model: 'Antigravity' };
+  // agy looks too: llm.js hands it the picture as a file in its own folder
   if (cfg.provider === 'ollama' && !(await ollama.canSee(model))) return { ok: false, code: 'novision', model };
   const user = cfg.provider === 'ollama'
     ? { role: 'user', content: prompt, images: [image] }
