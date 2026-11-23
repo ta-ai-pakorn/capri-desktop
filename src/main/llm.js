@@ -26,6 +26,7 @@ const PROVIDERS = {
   mistral: { label: 'Mistral', url: 'https://api.mistral.ai/v1', env: 'MISTRAL_API_KEY' },
   custom: { label: 'Custom (customUrl in config)' },
   claude: { label: 'Claude Code (sends to the terminal agent)', kind: 'claude' },
+  agy: { label: 'Antigravity (agy, your Google sign-in)', kind: 'agy' },
 };
 
 // no bypassPermissions: a chat bubble on the desktop shouldn't run anything without asking
@@ -72,6 +73,7 @@ async function models(id, cfg) {
   const p = endpoint(id, cfg);
   if (p.kind === 'ollama') return ollama.models().catch(() => null);
   if (p.kind === 'claude') return claudeVersion().then(() => ['Claude Code']);
+  if (p.kind === 'agy') return agyModels();
   // what's missing has a code, so her setup knows what to ask for (setup.js)
   if (!p.url) throw Object.assign(new Error('no address set for this server'), { code: 'nourl' });
   if (p.env && !p.key) throw Object.assign(new Error(`no API key (or ${p.env})`), { code: 'nokey' });
@@ -193,6 +195,78 @@ function claudeChat(cfg, text, persona, onDelta, signal) {
   });
 }
 
+// --- Antigravity (agy) ---------------------------------------------------------------------------
+// Headless `agy -p`, signed in with the user's own Google account: no key. It's an agent, so it runs
+// in plan mode, in a sandbox, in an empty folder of its own, with slash commands off: it only talks.
+// Each answer is one fresh prompt carrying her persona and the recent chat (her own memory, not agy's).
+
+const AGY_DIR = path.join(os.tmpdir(), 'capri-agy');
+
+function agyPath() {
+  const local = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'agy', 'bin', 'agy.exe');
+  return local && fs.existsSync(local) ? local : 'agy';
+}
+
+function agyRun(args, { signal, timeout } = {}) {
+  return new Promise((resolve, reject) => {
+    const exe = agyPath();
+    fs.mkdirSync(AGY_DIR, { recursive: true });
+    const child = spawn(exe, args, { cwd: AGY_DIR, windowsHide: true, shell: exe === 'agy' && process.platform === 'win32' });
+    let out = '';
+    let errors = '';
+    const kill = () => (process.platform === 'win32'
+      ? execFile('taskkill', ['/pid', String(child.pid), '/t', '/f'], () => {})
+      : child.kill());
+    signal?.addEventListener('abort', kill, { once: true });
+    const timer = timeout ? setTimeout(kill, timeout) : null;
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.stderr.on('data', (chunk) => { errors += chunk; });
+    child.on('error', () => reject(new Error('Antigravity CLI not found (is `agy` installed?)')));
+    child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
+      if (signal?.aborted) return reject(new Error('stopped'));
+      resolve({ code, out, errors });
+    });
+  });
+}
+
+// Its models, the quick ones first: a desktop chat wants a fast answer more than a deep one
+async function agyModels() {
+  const { code, out, errors } = await agyRun(['models'], { timeout: 30000 });
+  const names = out.split('\n').map((l) => l.split('\t')[0].trim()).filter((n) => /^[a-z0-9][\w.-]+$/i.test(n));
+  if (code !== 0 || !names.length) throw new Error(errors.trim().slice(0, 300) || 'agy listed no models');
+  const rank = (n) => (/flash/.test(n) ? 0 : /sonnet/.test(n) ? 1 : 2) + (/-low$/.test(n) ? 0 : /-medium$/.test(n) ? 0.1 : 0.2);
+  return names.sort((a, b) => rank(a) - rank(b));
+}
+
+async function agyChat(model, messages, onDelta, signal) {
+  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+  const talk = messages.filter((m) => m.role !== 'system');
+  const last = talk.pop();
+  // Windows caps a command line near 32k characters: the oldest messages go first
+  const lines = talk.map((m) => `${m.role === 'assistant' ? 'Capri' : 'User'}: ${m.content}`);
+  while (lines.length && system.length + (last?.content || '').length + lines.join('\n').length > 22000) lines.shift();
+  const said = lines.join('\n');
+  const prompt = [
+    'You are only playing a character in a desktop chat bubble. Do not use any tools, do not read or write files, do not run commands: just answer with her reply text, nothing else.',
+    '', '# Who you are and how you talk', system,
+    ...(said ? ['', '# The conversation so far', said] : []),
+    '', '# The user just said', last?.content || '',
+    '', 'Your reply, as her, plain text only:',
+  ].join('\n');
+  const args = ['-p', prompt, '--output-format', 'json', '--mode', 'plan', '--sandbox', '--disable-slash-commands',
+    '--effort', 'low', '--print-timeout', '120s', ...(model ? ['--model', model] : [])];
+  const { out, errors } = await agyRun(args, { signal, timeout: 130000 });
+  let result = null;
+  try { result = JSON.parse(out.trim().split('\n').filter(Boolean).at(-1)); } catch { /* not JSON: say why below */ }
+  if (!result) throw new Error(errors.trim().slice(0, 300) || out.trim().slice(0, 300) || 'Antigravity gave no answer');
+  if (result.status !== 'SUCCESS' || !result.response) throw new Error(result.error || result.message || `Antigravity: ${result.status || 'no answer'}`);
+  const text = String(result.response).trim();
+  onDelta(text);
+  return text;
+}
+
 function resetClaude() {
   claudeSession = null;
   claudeStarted = false;
@@ -206,12 +280,15 @@ function restoreClaude(saved) {
 }
 
 const isChatSession = (id) => Boolean(id) && id === claudeSession;
+// agy's events, if her hooks are in it: her chat runs in a folder of its own, so they're told apart by it
+const isChatFolder = (cwd) => Boolean(cwd) && path.resolve(String(cwd)).toLowerCase() === AGY_DIR.toLowerCase();
 
 async function chat(id, cfg, { model, messages }, onDelta, signal) {
   const p = endpoint(id, cfg);
   if (p.kind === 'ollama') return ollama.chat({ model, messages }, onDelta, signal);
   // Claude Code keeps its own memory of the conversation: only her persona and your last message go
   if (p.kind === 'claude') return claudeChat(cfg, messages.at(-1).content, messages[0].content, onDelta, signal);
+  if (p.kind === 'agy') return agyChat(model, messages, onDelta, signal);
   return openaiChat(p, { model, messages }, onDelta, signal);
 }
 
@@ -224,4 +301,4 @@ function isLocal(id, cfg, model) {
   return Boolean(PROVIDERS[id].local);
 }
 
-module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, models, warm, chat, resetClaude, isChatSession, claudeMemory, restoreClaude };
+module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, models, warm, chat, resetClaude, isChatSession, isChatFolder, claudeMemory, restoreClaude };

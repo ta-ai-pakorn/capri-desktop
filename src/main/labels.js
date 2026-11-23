@@ -143,7 +143,7 @@ const TRAY = {
     cloudFree: 'ฟรี, ออนไลน์',
     providers: {
       ollama: 'Ollama (ในเครื่อง)', lmstudio: 'LM Studio (ในเครื่อง)', llamacpp: 'llama.cpp / vLLM (ในเครื่อง :8080)',
-      pollinations: 'Pollinations (ไม่ต้องมีคีย์)', custom: 'กำหนดเอง (customUrl ใน config)', claude: 'Claude Code (ส่งให้ Claude ในเครื่อง)',
+      pollinations: 'Pollinations (ไม่ต้องมีคีย์)', custom: 'กำหนดเอง (customUrl ใน config)', claude: 'Claude Code (ส่งให้ Claude ในเครื่อง)', agy: 'Antigravity (agy ใช้บัญชี Google ของคุณ)',
     }, cloudSignin: 'ล็อกอิน Ollama (โมเดลคลาวด์ฟรี)…',
   },
 };
