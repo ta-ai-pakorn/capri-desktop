@@ -235,6 +235,7 @@ function agyRun(args, { signal, timeout } = {}) {
   });
 }
 
+// No --effort: agy's model names carry it (gemini-4-hydrogen-medium is Hydrogen at Medium).
 // Its models, the quick ones first: a desktop chat wants a fast answer more than a deep one
 async function agyModels() {
   const { code, out, errors } = await agyRun(['models'], { timeout: 30000 });
@@ -260,7 +261,7 @@ async function agyChat(model, messages, onDelta, signal) {
     '', 'Your reply, as her, plain text only:',
   ].join('\n');
   const args = ['-p', prompt, '--output-format', 'json', '--mode', 'plan', '--sandbox', '--disable-slash-commands',
-    '--effort', 'low', '--print-timeout', '120s', ...(model ? ['--model', model] : [])];
+    '--print-timeout', '120s', ...(model ? ['--model', model] : [])];
   const { out, errors } = await agyRun(args, { signal, timeout: 130000 });
   let result = null;
   try { result = JSON.parse(out.trim().split('\n').filter(Boolean).at(-1)); } catch { /* not JSON: say why below */ }
