@@ -302,6 +302,7 @@ export class Chat {
     this.history = await host.chatMemory().catch(() => this.history); // "forget" in her menu may have emptied it
     this.cold = status.warmup && !this.warm;
     this.agent = Boolean(status.agent); // Claude Code answers, as her, and really works in your project
+    this.slow = status.provider === 'agy'; // Antigravity's CLI takes ~15 s an answer: she says so while you wait
     this.listApps();
     const shortModel = status.model.replace(/:latest$/, '').replace(/^models\//, ''); // Ollama's tag, Gemini's prefix
     const tiny = status.provider === 'ollama' && TINY.test(status.model) && this.onBetterModel;
@@ -396,7 +397,7 @@ ${lastAnswer}`)).catch(() => '') || '';
     }
     // nothing yet after a few seconds: Ollama is still loading the model (the first answer after a start),
     // or Claude Code is at work
-    const wait = this.agent ? this.t.working : this.cold ? this.t.loading : null;
+    const wait = this.agent ? this.t.working : this.slow ? (this.t.slowBrain || this.t.loading) : this.cold ? this.t.loading : null;
     const slow = wait && setTimeout(() => {
       if (this.turn === id && !this.answer) this.panel.stream(wait);
     }, LOADING_AFTER_MS);
