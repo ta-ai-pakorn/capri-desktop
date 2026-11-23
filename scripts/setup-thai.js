@@ -27,6 +27,8 @@ let config = {};
 try { config = JSON.parse(fs.readFileSync(configFile, 'utf8')); } catch { /* first run */ }
 config.lang = 'th';
 if (config.closePages === undefined) config.closePages = false; // a choice made later in her menu is kept
+// she watches Claude Code (the hooks this script installs): 'auto' would pick Codex if its hooks are in too
+if (!config.assistant || config.assistant === 'auto') config.assistant = 'claude';
 fs.mkdirSync(path.dirname(configFile), { recursive: true });
 fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
 say(`✓ ตั้งภาษาไทย และปิดการปิดแท็บ AI อื่นแล้ว (${configFile})`);
