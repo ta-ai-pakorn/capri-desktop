@@ -412,6 +412,12 @@ function rebuildTray() {
               label: mode, type: 'radio', checked: cfg.claudeMode === mode, click: () => updateConfig({ claudeMode: mode }),
             })),
           },
+          {
+            label: 'Claude Code effort',
+            submenu: [['default', null], ...llm.CLAUDE_EFFORTS.map((e) => [e, e])].map(([label, effort]) => ({
+              label, type: 'radio', checked: (cfg.claudeEffort || null) === effort, click: () => updateConfig({ claudeEffort: effort }),
+            })),
+          },
         ] : []),
         { label: t.forget, click: forgetChats },
         // the key (or the address) of the one picked, pasted in her panel

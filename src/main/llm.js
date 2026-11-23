@@ -31,6 +31,8 @@ const PROVIDERS = {
 
 // no bypassPermissions: a chat bubble on the desktop shouldn't run anything without asking
 const CLAUDE_MODES = ['default', 'acceptEdits'];
+// how hard Claude Code thinks for her chat (--effort); unset: Claude Code's own default
+const CLAUDE_EFFORTS = ['low', 'medium', 'high'];
 // the models her Claude Code chat can use: its own default, then the aliases (always the newest of each)
 const CLAUDE_MODELS = ['Claude Code', 'fable', 'opus', 'sonnet', 'haiku'];
 
@@ -149,6 +151,7 @@ function claudeChat(cfg, text, persona, onDelta, signal, model) {
     '--permission-mode', CLAUDE_MODES.includes(cfg.claudeMode) ? cfg.claudeMode : 'default',
     '--append-system-prompt-file', quote(personaFile)];
   if (model && model !== 'Claude Code') args.push('--model', model);
+  if (CLAUDE_EFFORTS.includes(cfg.claudeEffort)) args.push('--effort', cfg.claudeEffort);
   // her screen look: the picture goes in with the message, through Claude Code's stream-json input
   // (in memory, never on disk); a plain message stays plain text
   const { text: said, image } = parts(text);
@@ -342,4 +345,4 @@ function isLocal(id, cfg, model) {
   return Boolean(PROVIDERS[id].local);
 }
 
-module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, models, warm, chat, resetClaude, isChatSession, isChatFolder, claudeMemory, restoreClaude };
+module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, CLAUDE_EFFORTS, models, warm, chat, resetClaude, isChatSession, isChatFolder, claudeMemory, restoreClaude };
