@@ -14,6 +14,7 @@ const { randomUUID } = require('node:crypto');
 require('./home').useSettingsHome(app);
 
 const config = require('./config');
+const lore = require('./lore');
 const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
@@ -721,6 +722,8 @@ function registerIpc() {
   ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('hooks:status', () => activeHooks().status());
   ipcMain.handle('config:set', (_e, patch) => updateConfig(patch));
+  // her world: the lore topics your message touches (lore.js)
+  ipcMain.handle('lore:get', (_e, text) => { try { return lore.forChat(text).text; } catch { return ''; } });
   ipcMain.handle('demo:window', (_e, open) => demoWindow(open));
   // right-clicking her: the same menu as the tray icon (which Windows often hides behind the ^ by the clock)
   // Windows only closes a popup menu on a click outside it when the menu's window is in front, and

@@ -381,6 +381,10 @@ export class Chat {
       else this.history.splice(at, 0, { role: 'assistant', content: this.opening });
       this.opening = null;
     }
+    // her world: the lore topics this message (and her last answer) touch, from your lore files
+    const lastAnswer = [...this.history].reverse().find((m) => m.role === 'assistant')?.content || '';
+    this.lore = await Promise.resolve(this.host.lore?.(`${text}
+${lastAnswer}`)).catch(() => '') || '';
     const messages = [{ role: 'system', content: this.persona() }, ...this.history.slice(-REMEMBER)];
     // Her mood (angry, sulking…) and her language, said again right by your message, for this answer
     // only. Small local models mostly go by the last thing they read: up in her prompt alone, they
@@ -1102,6 +1106,7 @@ export class Chat {
         : 'You live on the user\'s desktop as a small glitchy figure and keep them company.',
       `Right now it's ${new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date())}, the user's time.`,
       'You love the satellite that crosses the night sky and dream of reaching it, but bring it up only once in a while, never in every answer. Talk about what the user talks about.',
+      ...(this.lore ? [this.lore] : []),
       'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel.' + (lang.slang ?? ' Night City slang now and then (choom, preem, nova, gonk, flatline), not in every sentence.'),
       'Rules: keep it short, one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.',
       'You are an AI-generated fan version of the character, not the real one: say so if asked.',
