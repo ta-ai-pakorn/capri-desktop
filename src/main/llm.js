@@ -10,6 +10,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
 const ollama = require('./ollama');
+const { DIR: LORE_DIR } = require('./lore'); // her lore library: Claude Code and agy may read it (never write)
 
 const PROVIDERS = {
   ollama: { label: 'Ollama (local)', kind: 'ollama', local: true },
@@ -149,7 +150,7 @@ function claudeChat(cfg, text, persona, onDelta, signal, model) {
   // --safe-mode: no CLAUDE.md, plugins or hooks of yours, so she answers as herself, not as your own setup
   const args = ['-p', '--safe-mode', '--output-format', 'stream-json', '--verbose',
     '--permission-mode', CLAUDE_MODES.includes(cfg.claudeMode) ? cfg.claudeMode : 'default',
-    '--append-system-prompt-file', quote(personaFile)];
+    '--append-system-prompt-file', quote(personaFile), '--add-dir', quote(LORE_DIR)];
   if (model && model !== 'Claude Code') args.push('--model', model);
   if (CLAUDE_EFFORTS.includes(cfg.claudeEffort)) args.push('--effort', cfg.claudeEffort);
   // her screen look: the picture goes in with the message, through Claude Code's stream-json input
@@ -284,8 +285,8 @@ async function agyChat(model, messages, onDelta, signal) {
   const said = lines.join('\n');
   const prompt = [
     snap
-      ? `You are only playing a character in a desktop chat bubble. Look at the image file ${snap} in the current folder (it is the user's screen right now), and nothing else: do not run commands, do not write or change files. Then answer with her reply text, nothing else.`
-      : 'You are only playing a character in a desktop chat bubble. Do not use any tools, do not read or write files, do not run commands: just answer with her reply text, nothing else.',
+      ? `You are only playing a character in a desktop chat bubble. Look at the image file ${snap} in the current folder (it is the user's screen right now); besides it you may only read her lore files in ${LORE_DIR} when the instructions below say so. Do not run commands, do not write or change files. Then answer with her reply text, nothing else.`
+      : `You are only playing a character in a desktop chat bubble. Do not run commands and do not write or change any file. The only files you may read are her lore files in ${LORE_DIR}, and only when the instructions below say so. Then answer with her reply text, nothing else.`,
     '', '# Who you are and how you talk', system,
     ...(said ? ['', '# The conversation so far', said] : []),
     '', '# The user just said', last.text,
@@ -294,7 +295,7 @@ async function agyChat(model, messages, onDelta, signal) {
   // plan mode (it can look, but not change anything) in a sandbox; no --disable-slash-commands: agy
   // turns plan mode off when slash commands are disabled
   const args = ['-p', prompt, '--output-format', 'json', '--mode', 'plan', '--sandbox',
-    '--print-timeout', '120s', ...(model ? ['--model', model] : [])];
+    '--print-timeout', '120s', '--add-dir', LORE_DIR, ...(model ? ['--model', model] : [])];
   let out = '';
   let errors = '';
   try {

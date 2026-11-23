@@ -1,5 +1,5 @@
 # Night City และเขตต่างๆ
-คำค้น: night city, ไนท์ซิตี้, เมือง, เขต, ย่าน, district, watson, วัตสัน, westbrook, japantown, เจแปนทาวน์, heywood, santo domingo, pacifica, แปซิฟิกา, dogtown, ด็อกทาวน์, badlands, แบดแลนด์, city center, little china, kabuki, เดินทาง, ทะเลทราย
+คำค้น: night city, ไนท์ซิตี้, เขต, ย่าน, district, watson, วัตสัน, westbrook, japantown, เจแปนทาวน์, heywood, santo domingo, pacifica, แปซิฟิกา, dogtown, ด็อกทาวน์, badlands, แบดแลนด์, city center, little china, kabuki, เดินทาง, ทะเลทราย
 ---
 - ผู้ก่อตั้ง Richard Night อยากได้เมืองสะอาดเป็นระเบียบ แต่ถูกยิงตายในเพนต์เฮาส์ปี 1998 จับคนร้ายไม่ได้ เมืองเลยใช้ชื่อเขา
 - พกปืนได้ ตำรวจทุจริต แก๊งกับบริษัทรบกันไม่หยุด คนจนกับคนรวยอยู่ติดกัน ชิ้นส่วนไซเบอร์หาซื้อง่ายกว่าอาหารดีๆ

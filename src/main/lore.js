@@ -50,7 +50,9 @@ let turn = 0; // with nothing matched, one topic in turn: a newcomer still gets 
 
 // What goes into her prompt for this message: `text` is your message (with the last answer, for
 // what you're both on about). Returns { text, picked: [names] }.
-function forChat(text) {
+// `canRead`: her brain can open files itself (Claude Code, agy). Then it gets the whole library's
+// index with file names, and may read any other topic that fits better than the two picked here.
+function forChat(text, { canRead = false } = {}) {
   const { core, topics } = read();
   if (!core && !topics.length) return { text: '', picked: [] };
   const said = String(text || '').toLowerCase();
@@ -67,7 +69,15 @@ function forChat(text) {
   if (!picked.length && topics.length) picked = [topics[turn++ % topics.length]];
   const parts = [];
   if (core) parts.push(`# Your world (Cyberpunk lore you know)\n${core.body}`);
-  if (topics.length) parts.push(`Topics you know about: ${topics.map((t) => t.title).join(' · ')}`);
+  if (topics.length && canRead) {
+    parts.push([
+      `Your whole lore library is the folder ${DIR}, one topic per file:`,
+      ...topics.map((t) => `- ${t.name}.md: ${t.title}`),
+      'The topics written out below were picked by keywords and can miss. Before every answer, check this list: when the user\'s message is about a topic in it (even in other words, e.g. "half machine" is cyberware) that is not written out below, read that file with your file-reading tool first (at most two files), and answer with what it says. Only read files in that folder; never change any file. Never mention files, folders or tools to the user.',
+    ].join('\n'));
+  } else if (topics.length) {
+    parts.push(`Topics you know about: ${topics.map((t) => t.title).join(' · ')}`);
+  }
   for (const t of picked) parts.push(`## ${t.title}\n${t.body}`);
   return { text: parts.join('\n\n'), picked: picked.map((t) => t.name) };
 }
