@@ -13,6 +13,7 @@ const LONG_JOB_ACTIONS = 50;
 const THINK_AFTER = 15000;
 const THINK_SAY = 40000;
 const THINK_LONG = 120000;
+const STALE_MS = 10 * 60 * 1000; // nothing from a turn for this long, and no question pending: it ended unsaid
 
 export class Brain {
   constructor({ capri, panel, voice, host, mission, lang = 'fr', assistant = 'claude' }) {
@@ -59,6 +60,17 @@ export class Brain {
 
   get busySessions() {
     return [...this.sessions.values()].filter((s) => s.working);
+  }
+
+  // A session is done: nothing else at work, she rests; else the ticker shows what still is.
+  settle() {
+    const busy = this.busySessions.sort((a, b) => b.seen - a.seen);
+    if (!busy.length) {
+      this.panel.setTicker(null);
+      if (this.capri.mode !== 'alert') this.capri.setMode('idle');
+      return;
+    }
+    this.panel.setTicker(busy[0].last || null);
   }
 
   say(kind, line, s, extra = {}) {
@@ -114,10 +126,7 @@ export class Brain {
       case 'StopFailure': return this.onStopFailure(evt, s);
       case 'Interrupt':
         s.working = false;
-        if (!this.busySessions.length) {
-          this.panel.setTicker(null);
-          this.capri.setMode('idle');
-        }
+        this.settle();
         return this.say('info', pick(this.t.interrupted), s, { face: 'wide', hold: 4000 });
       case 'SubagentStart': return this.onSubagent(evt, s, true);
       case 'SubagentStop': return this.onSubagent(evt, s, false);
@@ -160,7 +169,15 @@ export class Brain {
       this.thinking = null;
       return;
     }
-    const s = busy.sort((a, b) => b.seen - a.seen)[0];
+    for (const stale of busy) {
+      if (!stale.waiting && Date.now() - stale.seen > STALE_MS) stale.working = false;
+    }
+    if (!this.busySessions.length) {
+      this.thinking = null;
+      this.settle();
+      return;
+    }
+    const s = this.busySessions.sort((a, b) => b.seen - a.seen)[0];
     const quiet = Date.now() - s.seen; // any event from it counts as a sign of life
     if (s.waiting || quiet < THINK_AFTER) {
       // it spoke up again (or it's your turn): whatever it did is on the ticker now
@@ -193,6 +210,12 @@ export class Brain {
 
   onTool(evt, s) {
     const action = this.describe(evt);
+    if (evt.agent_id && !s.working) {
+      s.log.push(action);
+      if (s.log.length > 8) s.log.shift();
+      this.tally(evt)?.action();
+      return;
+    }
     s.working = true;
     s.count += 1;
     s.last = action;
@@ -260,6 +283,8 @@ export class Brain {
       return;
     }
     if (type === 'idle_prompt') {
+      s.working = false;
+      this.settle();
       this.voice.play('tick');
       this.say('info', pick(this.t.waiting), s, { face: 'smug', hold: 6000 });
       return;
@@ -282,10 +307,7 @@ export class Brain {
       if (!evt.demo) this.bond?.add('claude', 1); // work done together
     }
 
-    if (!this.busySessions.length) {
-      this.panel.setTicker(null);
-      this.capri.setMode('idle');
-    }
+    this.settle();
     // Not on Claude's window any more: you can't see the answer, so she brings it to you, whole,
     // and holds it up until you're back on Claude's window or click it away.
     const reply = this.away(s) ? readable(evt.last_assistant_message || '') : '';
@@ -327,10 +349,7 @@ export class Brain {
 
   onStopFailure(evt, s) {
     s.working = false;
-    if (!this.busySessions.length) {
-      this.panel.setTicker(null);
-      this.capri.setMode('idle');
-    }
+    this.settle();
     this.capri.hurt();
     this.voice.play('error');
     const detail = evt.error || evt.message || '';
@@ -342,15 +361,12 @@ export class Brain {
     const line = fmt(pick(starting ? this.t.subagentStart : this.t.subagentStop), { agent });
     const action = { verb: starting ? '↗' : '↘', target: line };
     s.log.push(action);
-    this.panel.setTicker(action);
+    if (s.working) this.panel.setTicker(action);
   }
 
   onSessionEnd(evt, s) {
     this.sessions.delete(s.id);
-    if (!this.busySessions.length) {
-      this.panel.setTicker(null);
-      this.capri.setMode('idle');
-    }
+    this.settle();
     this.say('info', fmt(pick(this.t.bye), { project: s.project }), s, { face: 'aside', hold: 4000 });
   }
 
