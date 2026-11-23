@@ -31,6 +31,8 @@ const PROVIDERS = {
 
 // no bypassPermissions: a chat bubble on the desktop shouldn't run anything without asking
 const CLAUDE_MODES = ['default', 'acceptEdits'];
+// the models her Claude Code chat can use: its own default, then the aliases (always the newest of each)
+const CLAUDE_MODELS = ['Claude Code', 'fable', 'opus', 'sonnet', 'haiku'];
 
 function endpoint(id, cfg) {
   const p = PROVIDERS[id];
@@ -72,7 +74,7 @@ function geminiModels(names) {
 async function models(id, cfg) {
   const p = endpoint(id, cfg);
   if (p.kind === 'ollama') return ollama.models().catch(() => null);
-  if (p.kind === 'claude') return claudeVersion().then(() => ['Claude Code']);
+  if (p.kind === 'claude') return claudeVersion().then(() => CLAUDE_MODELS);
   if (p.kind === 'agy') return agyModels();
   // what's missing has a code, so her setup knows what to ask for (setup.js)
   if (!p.url) throw Object.assign(new Error('no address set for this server'), { code: 'nourl' });
@@ -138,13 +140,15 @@ function claudeVersion() {
   });
 }
 
-function claudeChat(cfg, text, persona, onDelta, signal) {
+function claudeChat(cfg, text, persona, onDelta, signal, model) {
   // her persona, from a file: too long and too full of quotes and newlines for cmd's command line
   const personaFile = path.join(os.tmpdir(), 'capri-persona.txt');
   fs.writeFileSync(personaFile, persona);
-  const args = ['-p', '--output-format', 'stream-json', '--verbose',
+  // --safe-mode: no CLAUDE.md, plugins or hooks of yours, so she answers as herself, not as your own setup
+  const args = ['-p', '--safe-mode', '--output-format', 'stream-json', '--verbose',
     '--permission-mode', CLAUDE_MODES.includes(cfg.claudeMode) ? cfg.claudeMode : 'default',
     '--append-system-prompt-file', quote(personaFile)];
+  if (model && model !== 'Claude Code') args.push('--model', model);
   if (!claudeSession) claudeSession = randomUUID();
   args.push(claudeStarted ? '--resume' : '--session-id', claudeSession);
   return new Promise((resolve, reject) => {
@@ -287,7 +291,7 @@ async function chat(id, cfg, { model, messages }, onDelta, signal) {
   const p = endpoint(id, cfg);
   if (p.kind === 'ollama') return ollama.chat({ model, messages }, onDelta, signal);
   // Claude Code keeps its own memory of the conversation: only her persona and your last message go
-  if (p.kind === 'claude') return claudeChat(cfg, messages.at(-1).content, messages[0].content, onDelta, signal);
+  if (p.kind === 'claude') return claudeChat(cfg, messages.at(-1).content, messages[0].content, onDelta, signal, model);
   if (p.kind === 'agy') return agyChat(model, messages, onDelta, signal);
   return openaiChat(p, { model, messages }, onDelta, signal);
 }

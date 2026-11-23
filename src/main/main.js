@@ -387,7 +387,8 @@ function rebuildTray() {
         { type: 'separator' },
         ...(chatModels?.length
           ? chatModels.map((name) => ({
-            label: cloud.free.includes(name) ? `${name} · ${t.cloudFree}` : name,
+            label: cloud.free.includes(name) ? `${name} · ${t.cloudFree}`
+              : cfg.provider === 'claude' && name !== 'Claude Code' ? `Claude ${name[0].toUpperCase()}${name.slice(1)}` : name,
             type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }),
           }))
           : [{ label: (chatError || t.noOllama).slice(0, 80), enabled: false }]),
