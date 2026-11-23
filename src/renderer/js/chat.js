@@ -367,7 +367,9 @@ export class Chat {
     this.onMessage?.();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
-    const asked = this.agent ? null : this.asked(text);
+    // Claude Code does what you ask itself; only "look at my screen" stays hers (it can't see it otherwise)
+    const mine = this.asked(text);
+    const asked = this.agent ? (mine?.kind === 'look' ? mine : null) : mine;
     if (asked?.kind === 'look') return this.sendLook(text, id);
     if (asked?.kind === 'care') return this.sendCare(asked, id);
     const early = asked && asked.kind !== 'close' ? this.doNow(asked) : null;

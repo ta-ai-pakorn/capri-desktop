@@ -149,6 +149,16 @@ function claudeChat(cfg, text, persona, onDelta, signal, model) {
     '--permission-mode', CLAUDE_MODES.includes(cfg.claudeMode) ? cfg.claudeMode : 'default',
     '--append-system-prompt-file', quote(personaFile)];
   if (model && model !== 'Claude Code') args.push('--model', model);
+  // her screen look: the picture goes in with the message, through Claude Code's stream-json input
+  // (in memory, never on disk); a plain message stays plain text
+  const { text: said, image } = parts(text);
+  if (image) args.push('--input-format', 'stream-json');
+  const input = image
+    ? `${JSON.stringify({ type: 'user', message: { role: 'user', content: [
+      { type: 'text', text: said },
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+    ] } })}\n`
+    : said;
   if (!claudeSession) claudeSession = randomUUID();
   args.push(claudeStarted ? '--resume' : '--session-id', claudeSession);
   return new Promise((resolve, reject) => {
@@ -188,7 +198,7 @@ function claudeChat(cfg, text, persona, onDelta, signal, model) {
       }
     });
     child.stderr.on('data', (chunk) => { errors += chunk; });
-    child.stdin.end(text);
+    child.stdin.end(input);
     child.on('error', reject);
     child.on('close', () => {
       if (signal.aborted) return reject(new Error('stopped'));

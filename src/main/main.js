@@ -640,8 +640,7 @@ async function sayAboutSnap({ id, persona, prompt, history = [] }) {
   if (!chatModels?.length) await refreshModels();
   const model = pickModel(cfg);
   if (!model) return { ok: false, code: 'noai' };
-  if (cfg.provider === 'claude') return { ok: false, code: 'novision', model: 'Claude Code' };
-  // agy looks too: llm.js hands it the picture as a file in its own folder
+  // Claude Code and agy look too: llm.js hands Claude the picture in memory, agy as a file in its folder
   if (cfg.provider === 'ollama' && !(await ollama.canSee(model))) return { ok: false, code: 'novision', model };
   const user = cfg.provider === 'ollama'
     ? { role: 'user', content: prompt, images: [image] }
