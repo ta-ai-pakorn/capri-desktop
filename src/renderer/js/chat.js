@@ -49,6 +49,8 @@ const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reprodu
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
 // "mets Bohemian Rhapsody sur YouTube", "play Daft Punk on youtube"
 const YOUTUBE_ASK = /(?:play|put on|put|mets|met|joue|lance|écoute|pon|toca|reproduce|coloca|bota|toque|включи|поставь|เปิดเพลง|เล่นเพลง|เปิด|เล่น)(?:[- ]moi|[- ]me|me)?\s+(.+?)\s+(?:on|sur|en|no|na|в|ใน|บน)\s+youtube/i;
+// Thai, said the Thai way: no spaces needed ("เปิดเพลง…ให้หน่อยใน youtube", "…ในยูทูบ")
+const YOUTUBE_ASK_TH = /(?:เปิดเพลง|เล่นเพลง|หาเพลง|เปิดคลิป|เปิด|เล่น)\s*(.+?)\s*(?:ให้หน่อย|ให้ที|หน่อย|ที|ให้)?\s*(?:ใน|บน|จาก)\s*(?:youtube|ยูทูบ|ยูทูป)/i;
 // "mets Bohemian Rhapsody", "joue-moi du Daft Punk", "play some Queen": a song, or a game to play
 const PLAY_ASK = /^(?:capri,?\s+)?(?:mets|met|joue|play|put on|pon|toca|coloca|bota|toque|включи|поставь|เปิดเพลง|เล่นเพลง)(?:[- ]moi|[- ]me|me)?\s*(.{2,100})$/iu;
 // "joue à Brawlhalla", "play the game…": a game, not a song
@@ -367,9 +369,11 @@ export class Chat {
     this.onMessage?.();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
-    // Claude Code does what you ask itself; only "look at my screen" stays hers (it can't see it otherwise)
-    const mine = this.asked(text);
-    const asked = this.agent ? (mine?.kind === 'look' ? mine : null) : mine;
+    // With Claude Code answering, what she can do herself stays hers too (music, YouTube, an app, the
+    // volume, a reminder, looking…): headless, Claude Code can't ask your approval to run anything,
+    // so it would only fail. Claude Code then just talks about it, told she's done it already.
+    const asked = this.asked(text);
+    const ownTurn = this.agent && Boolean(asked); // Claude Code answers, but she does the doing
     if (asked?.kind === 'look') return this.sendLook(text, id);
     if (asked?.kind === 'care') return this.sendCare(asked, id);
     const early = asked && asked.kind !== 'close' ? this.doNow(asked) : null;
@@ -396,6 +400,12 @@ ${lastAnswer}`)).catch(() => '') || '';
       const mood = this.bond?.moodLine().replace(/^Right now: /, '');
       const last = messages.at(-1);
       messages[messages.length - 1] = { ...last, content: `${last.content}\n\n(Note for you, never repeat it: ${[mood, this.languageNote()].filter(Boolean).join(' ')})` };
+    } else if (ownTurn) {
+      // what her app really did (the video it found…), so Claude Code doesn't make up another one
+      const did = await Promise.resolve(early).catch(() => null);
+      const what = did?.line ? ` What it did: "${did.line}". Talk about that only; never name another song, video or thing as if it were the one opened.` : '';
+      const last = messages.at(-1);
+      messages[messages.length - 1] = { ...last, content: `${last.content}\n\n(Note for you, never repeat it: Capri's own app is already doing this for the user right now.${what} Do not run any command or tool for it; just answer in one or two short sentences, in character.)` };
     }
     // nothing yet after a few seconds: Ollama is still loading the model (the first answer after a start),
     // or Claude Code is at work
@@ -425,7 +435,7 @@ ${lastAnswer}`)).catch(() => '') || '';
     this.panel.stream(answer, { done: true });
     this.panel.setFace(mood(answer));
     this.panel.setChatBusy(false);
-    if (!this.agent) this.after(res.text, answer, asked, early, text);
+    if (!this.agent || ownTurn) this.after(res.text, answer, asked, early, text);
     this.listApps(); // fresh for the next message
   }
 
@@ -554,7 +564,9 @@ ${lastAnswer}`)).catch(() => '') || '';
     if (media && (count <= 5 || MUSIC_WORD.test(text))) return { kind: 'media', action: media };
     const song = SPOTIFY_ASK.exec(text)?.[1];
     if (song) return { kind: 'music', song };
-    const video = YOUTUBE_ASK.exec(text)?.[1];
+    // "เปิดเพลงในเรื่อง X": X's music, not a video about X
+    const thai = YOUTUBE_ASK_TH.exec(text)?.[1]?.replace(/^(?:ใน|จาก)?เรื่อง\s*/, '').trim();
+    const video = YOUTUBE_ASK.exec(text)?.[1] || (thai && (/^\s*(?:เปิด|เล่น|หา)เพลง/.test(text) && !/เพลง|song|music|ost/i.test(thai) ? `${thai} เพลง` : thai));
     if (video) return { kind: 'youtube', song: songOf(video) };
     const app = this.askedToClose(text);
     if (app) return { kind: 'close', name: app };
