@@ -30,6 +30,8 @@
 > 2. ปิด Claude Code ให้สนิทแล้วเปิดใหม่
 > 3. ใส่ AI ให้แชต: คลิกขวาที่ Capri › โมเดล AI › ตั้งค่ากับเธอ… (เช่น Gemini key ฟรีจาก [aistudio.google.com](https://aistudio.google.com))
 >
+> ค่าตั้งส่วนตัวของแคพรี (ชื่อ บุคลิก ความจำ API key) อยู่ในโฟลเดอร์ `C:\Users\<ชื่อคุณ>\.capri-desktop` ครับ
+>
 > อัปเดตเวอร์ชันใหม่: `cd $HOME\capri-desktop; git pull; npm install`
 > ถอดออก: คลิกขวาที่ Capri › ถอด hook ของ Claude Code แล้วลบโฟลเดอร์ `capri-desktop` ทิ้งครับ
 >
@@ -42,7 +44,7 @@
 >    `winget install --id Git.Git -e` / `winget install --id OpenJS.NodeJS.LTS -e` (the user may need to approve a prompt), then open a new shell.
 > 2. `cd $HOME; git clone -b thai https://github.com/ta-ai-pakorn/capri-desktop; cd capri-desktop` (if the folder exists: `git pull`).
 > 3. `npm install`
-> 4. `node scripts/setup-thai.js` — sets Thai + `closePages: false` in `%APPDATA%\capri-desktop\config.json`,
+> 4. `node scripts/setup-thai.js` — sets Thai + `closePages: false` in `~/.capri-desktop/config.json` (her settings live there, not AppData),
 >    adds Capri's hooks to `~/.claude/settings.json` (keeps existing hooks, writes a backup), creates a desktop shortcut.
 > 5. Start Capri with the desktop shortcut (or `npm start` in the background).
 > 6. Tell the user, in Thai, the steps only they can do: fully quit and reopen Claude Code (hooks load at session start),

@@ -16,13 +16,9 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..');
 const say = (line) => console.log(line);
 
-// 1. her settings: where Electron keeps them for this app (its package name)
-function appDataDir() {
-  if (process.platform === 'win32') return process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support');
-  return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-}
-const configFile = path.join(appDataDir(), 'capri-desktop', 'config.json');
+// 1. her settings, in her fixed folder (~/.capri-desktop, see src/main/home.js): not AppData, which a
+//    packaged app like Claude's desktop app keeps a private copy of
+const configFile = path.join(os.homedir(), '.capri-desktop', 'config.json');
 let config = {};
 try { config = JSON.parse(fs.readFileSync(configFile, 'utf8')); } catch { /* first run */ }
 config.lang = 'th';

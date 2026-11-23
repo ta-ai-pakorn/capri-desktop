@@ -10,6 +10,9 @@ const {
 } = require('electron');
 const { randomUUID } = require('node:crypto');
 
+// her settings in ~/.capri-desktop, whoever starts her (home.js): before anything reads userData
+require('./home').useSettingsHome(app);
+
 const config = require('./config');
 const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
