@@ -720,7 +720,24 @@ function registerIpc() {
   ipcMain.handle('config:set', (_e, patch) => updateConfig(patch));
   ipcMain.handle('demo:window', (_e, open) => demoWindow(open));
   // right-clicking her: the same menu as the tray icon (which Windows often hides behind the ^ by the clock)
-  ipcMain.on('menu:open', () => trayMenu?.popup({ window: overlay }));
+  // Windows only closes a popup menu on a click outside it when the menu's window is in front, and
+  // the overlay never takes focus (focusable: false): for the menu's time it does, then gives it back
+  ipcMain.on('menu:open', () => {
+    if (!trayMenu || !overlay) return;
+    const lend = process.platform === 'win32' && !overlay.isFocusable();
+    if (lend) {
+      overlay.setFocusable(true);
+      overlay.focus();
+    }
+    trayMenu.popup({
+      window: overlay,
+      callback: () => {
+        if (!lend || !overlay || overlay.isDestroyed()) return;
+        overlay.setFocusable(false);
+        overlay.blur();
+      },
+    });
+  });
   // her welcome panel's buttons
   ipcMain.handle('hooks:install', () => runHooks('install', { quiet: true }));
   ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(activeHooks().status().file))); // Claude Code keeps its settings there
