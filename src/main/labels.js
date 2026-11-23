@@ -121,7 +121,7 @@ const TRAY = {
   },
   th: {
     name: 'ไทย',
-    online: (port) => `Capri — รอฟังที่พอร์ต ${port}`,
+    online: (port) => `แคพรี — รอฟังที่พอร์ต ${port}`,
     teleport: 'วาร์ป', satellite: 'มองดาวเทียม', demo: 'เล่นเดโม', help: 'ใช้งานยังไง?',
     report: 'รายงานภารกิจ', talk: 'คุยกับเธอ', custom: 'ปรับเธอให้เป็นของคุณ…', chatModel: 'โมเดล AI', aiSetup: 'ตั้งค่ากับเธอ…', apiKey: 'API key หรือที่อยู่เซิร์ฟเวอร์…', noOllama: 'ไม่พบ Ollama',
     rest: 'ตอนพัก', restCorner: 'อยู่มุมของเธอ', restTaskbar: 'นั่งบนทาสก์บาร์', watch: 'คอยดู', watchNone: 'ไม่ต้องดูอะไร แค่อยู่เป็นเพื่อน',
