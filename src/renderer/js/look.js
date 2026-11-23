@@ -13,6 +13,8 @@ const FIRST_AFTER = 2 * 60 * 1000; // turned on: her first look a couple of minu
 const EVERY = [8, 15];             // then every 8 to 15 minutes…
 const ACTIVE_MS = 90 * 1000;       // …if you're at your PC (the pointer moved lately)…
 const SAME_WINDOW_MS = 25 * 60 * 1000; // …and on another window than last time (or a good while later)
+// her menu: every N minutes instead (null: 8 to 15); on the same window, three times that (15 min at least)
+export const LOOK_EVERY = [5, 10, 15, 30];
 // what her AI is asked about the picture
 const PROMPT = 'This is a picture of the user\'s screen right now. If you see a small figure with a big red mane, that\'s you: leave it out. Name one concrete thing you really see on it (the app or website, a title, a picture, a word), then react to it in character: curious, playful or teasing. One or two short sentences, talking to them.';
 
@@ -40,9 +42,12 @@ export class Look {
     return this.brain.t.look;
   }
 
-  configure({ watchScreen, lookAsked }) {
+  configure({ watchScreen, lookAsked, lookEvery }) {
     const on = Boolean(watchScreen);
-    if (on && !this.auto) this.nextAt = Date.now() + FIRST_AFTER;
+    const every = LOOK_EVERY.includes(lookEvery) ? lookEvery : null;
+    // a new interval counts from now: no waiting out the old one
+    if (on && (!this.auto || every !== this.every)) this.nextAt = Date.now() + Math.min(FIRST_AFTER, (every || 99) * 60 * 1000);
+    this.every = every;
     this.auto = on;
     this.asked = Boolean(lookAsked);
   }
@@ -92,8 +97,9 @@ export class Look {
     if (!this.auto || !this.asked || this.looking || Date.now() < this.nextAt) return;
     if (this.active() > ACTIVE_MS || !this.free()) return;
     const fg = this.capri.windows.fg;
-    if (fg === this.lastFg && Date.now() - this.lastAt < SAME_WINDOW_MS) return;
-    this.nextAt = Date.now() + rand(EVERY[0], EVERY[1]) * 60 * 1000;
+    const sameWindow = this.every ? Math.max(15, this.every * 3) * 60 * 1000 : SAME_WINDOW_MS;
+    if (fg === this.lastFg && Date.now() - this.lastAt < sameWindow) return;
+    this.nextAt = Date.now() + (this.every || rand(EVERY[0], EVERY[1])) * 60 * 1000;
     this.now();
   }
 

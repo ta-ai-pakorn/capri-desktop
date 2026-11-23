@@ -442,6 +442,13 @@ function rebuildTray() {
       },
     },
     {
+      // how often she looks, when she does
+      label: t.lookEvery || TRAY.en.lookEvery,
+      submenu: [[null, t.lookEveryAuto || TRAY.en.lookEveryAuto], ...[5, 10, 15, 30].map((n) => [n, (t.lookEveryMin || TRAY.en.lookEveryMin)(n)])].map(([n, label]) => ({
+        label, type: 'radio', checked: (cfg.lookEvery || null) === n, click: () => updateConfig({ lookEvery: n }),
+      })),
+    },
+    {
       label: t.rest,
       submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({
         label, type: 'radio', checked: cfg.rest === rest, click: () => updateConfig({ rest }),
